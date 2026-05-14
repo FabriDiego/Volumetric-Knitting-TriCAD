@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - DigiKnitting Voxel Pro</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { background-color: #f0f0f0; color: #444; margin: 0; overflow: hidden; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; pointer-events: none; }
+        #controls {
+            position: absolute; top: 50px; left: 20px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 8px; z-index: 100;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        button { padding: 8px 12px; cursor: pointer; font-weight: bold; border: 1px solid #ccc; background: #fff; }
+        button:hover { background: #eee; }
+        #topDownBtn { background: #08f; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 10px;}
+        #exportBtn { background: #2a2; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; }
+        .layer-display { font-size: 1.1em; text-align: center; font-weight: bold; color: #08f; }
+
+        #stitch-picker {
+            position: absolute; top: 50px; right: 20px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 8px; z-index: 100;
+            display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 130px;
+        }
+        #stitch-picker h3 {
+            margin: 0 0 4px 0; font-size: 0.85em;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: #888; text-align: center;
+        }
+        .stitch-btn {
+            padding: 10px 12px; cursor: pointer; font-weight: bold;
+            border: 2px solid #ccc; background: #fff;
+            border-radius: 6px; text-align: center;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .stitch-btn:hover { background: #eef; border-color: #aaf; }
+        .stitch-btn.active {
+            background: #08f; color: #fff;
+            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
+        }
+        .stitch-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+        #colour-row {
+            display: flex; align-items: center; gap: 8px;
+            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
+        }
+        #colour-row label {
+            font-size: 0.85em; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #888; white-space: nowrap;
+        }
+        #colourPicker {
+            width: 100%; height: 32px; border: 2px solid #ccc;
+            border-radius: 6px; cursor: pointer; padding: 1px;
+            background: none;
+        }
+
+        #rotation-controls {
+            display: flex; flex-direction: column; gap: 8px; align-items: center;
+            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
+        }
+        #rotation-controls h3 {
+            margin: 0 0 4px 0; font-size: 0.85em;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: #888; text-align: center;
+        }
+        .compass {
+            display: grid;
+            grid-template-columns: repeat(3, 36px);
+            grid-template-rows: repeat(3, 36px);
+            gap: 4px;
+        }
+        .dir-btn {
+            width: 36px; height: 36px;
+            cursor: pointer; font-size: 0.85em; font-weight: bold;
+            border: 2px solid #ccc; background: #fff;
+            border-radius: 6px; text-align: center; line-height: 32px; padding: 0;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .dir-btn:hover { background: #eef; border-color: #aaf; }
+        .dir-btn.active {
+            background: #08f; color: #fff;
+            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
+        }
+        .compass-empty { width: 36px; height: 36px; }
+        .dir-btn.base {
+            border-color: #08f; color: #08f;
+            border-style: dashed;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">
+        <strong>Voxel Knitting by Diego Fabri</strong><br>
+        Left Click: Build | Shift + Left Click: Delete<br>
+        <strong>Right Click: Rotate Camera</strong> | Mouse Wheel: Zoom
+    </div>
+
+    <div id="controls">
+        <div class="layer-display">Current Layer: <span id="layerNum">0</span></div>
+        <button id="upLayer">↑ Next Layer</button>
+        <button id="downLayer">↓ Previous Layer</button>
+        <button id="resetLayer">Reset to Floor</button>
+        <button id="topDownBtn">Reset Top-Down View</button>
+        <button id="exportBtn">⬇ Export OBJ</button>
+        <label style="font-size:0.8em;color:#888;text-align:center;">Circular Knitting</label>
+        <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
+    </div>
+
+    <div id="stitch-picker">
+        <h3>Stitch</h3>
+        <button class="stitch-btn active loading" data-stitch="knit">Knit</button>
+        <button class="stitch-btn loading" data-stitch="castOn">Cast On</button>
+        <button class="stitch-btn loading" data-stitch="purl">Purl</button>
+
+        <div id="colour-row">
+            <label>Colour</label>
+            <input type="color" id="colourPicker" value="#ff9de2">
+        </div>
+
+        <div id="rotation-controls">
+            <h3>Orientation</h3>
+            <div class="compass">
+                <div class="compass-empty"></div>
+                <button class="dir-btn active" data-dir="0">N</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="1">W</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="3">E</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="2">S</button>
+                <div class="compass-empty"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+       import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+
+        let camera, scene, renderer, controls;
+        let plane;
+        let pointer, raycaster, isShiftDown = false;
+
+        let rollOverMesh, rollOverMaterial;
+        let gridHelper, bentGridHelper;
+        const modelPrototypes = {};
+        let activeStitch = 'knit';
+        let placementRotationStep = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
+        let isLeftDown = false;
+        let lastPlacedKey = null;
+        let activeColor = new THREE.Color('#ff9de2');
+
+        let currentLayer = 0;
+        const GRID_STEP = 50;
+        const objects = [];
+        const meshToModel = new Map();
+
+        // --- THE 3D MATRIX ---
+        const voxelMatrix = {};
+
+        let bendFactor = 0;
+        const GRID_WIDTH = 1000;
+
+        function applyBendToModel(model) {
+            const flat = model.userData.flatPos;
+            if (!flat) return;
+            if (bendFactor === 0) {
+                model.position.copy(flat);
+                if (model.userData.baseQuat) model.quaternion.copy(model.userData.baseQuat);
+                return;
+            }
+            const totalAngle = 2 * Math.PI * bendFactor;
+            const radius = GRID_WIDTH / totalAngle;
+            // X wraps downward: centre stays at Y=0, edges curve under the plane
+            const angle = (flat.x / GRID_WIDTH) * totalAngle;
+            model.position.set(
+                Math.sin(angle) * radius,
+                flat.y + (Math.cos(angle) - 1) * radius,
+                flat.z
+            );
+            // Tilt the stitch to stay tangent to the cylinder surface (rotate around Z)
+            const qBend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
+            model.quaternion.copy(qBend.multiply((model.userData.baseQuat || new THREE.Quaternion()).clone()));
+        }
+
+        function updateAllBends() {
+            Object.values(voxelMatrix).forEach(applyBendToModel);
+        }
+
+        function updateBentGrid() {
+            if (bentGridHelper) { scene.remove(bentGridHelper); bentGridHelper.geometry.dispose(); bentGridHelper = null; }
+            if (bendFactor === 0) { gridHelper.visible = true; return; }
+            gridHelper.visible = false;
+
+            const totalAngle = 2 * Math.PI * bendFactor;
+            const radius = GRID_WIDTH / totalAngle;
+            const divisions = 20;
+            const segs = 64;
+            const halfW = GRID_WIDTH / 2;
+            const step = GRID_WIDTH / divisions;
+            const pts = [];
+
+            // Cross-sectional arcs in XY plane — one per Z-step (grid depth lines become rings)
+            for (let zi = 0; zi <= divisions; zi++) {
+                const z = -halfW + zi * step;
+                for (let si = 0; si < segs; si++) {
+                    const a1 = (-halfW + (si / segs) * GRID_WIDTH) / GRID_WIDTH * totalAngle;
+                    const a2 = (-halfW + ((si + 1) / segs) * GRID_WIDTH) / GRID_WIDTH * totalAngle;
+                    pts.push(
+                        Math.sin(a1) * radius, (Math.cos(a1) - 1) * radius, z,
+                        Math.sin(a2) * radius, (Math.cos(a2) - 1) * radius, z
+                    );
+                }
+            }
+
+            // Longitudinal lines along Z axis — one per X-step (grid width lines stay as Z lines)
+            for (let xi = 0; xi <= divisions; xi++) {
+                const a = (-halfW + xi * step) / GRID_WIDTH * totalAngle;
+                const cx = Math.sin(a) * radius;
+                const cy = (Math.cos(a) - 1) * radius;
+                pts.push(cx, cy, -halfW,  cx, cy, halfW);
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+            bentGridHelper = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x888888 }));
+            scene.add(bentGridHelper);
+        }
+
+        function getMatrixKey(position) {
+            const x = Math.round(position.x);
+            const y = Math.round(position.y);
+            const z = Math.round(position.z);
+            return `${x},${y},${z}`;
+        }
+
+        // Back offset: one grid cell behind the stitch based on its facing direction.
+        // N(0) faces -Z → back is +Z, W(1) faces -X → back is +X,
+        // S(2) faces +Z → back is -Z, E(3) faces +X → back is -X.
+        function getBackOffset(effectiveStep) {
+            switch (effectiveStep) {
+                case 0: return new THREE.Vector3(0, 0,  GRID_STEP);
+                case 1: return new THREE.Vector3( GRID_STEP, 0, 0);
+                case 2: return new THREE.Vector3(0, 0, -GRID_STEP);
+                case 3: return new THREE.Vector3(-GRID_STEP, 0, 0);
+                default: return new THREE.Vector3();
+            }
+        }
+
+        function setModelColor(model, color) {
+            model.traverse(child => {
+                if (child.isMesh && child.material) child.material.color.set(color);
+            });
+        }
+
+        const RED = new THREE.Color(0xff2020);
+
+        function updateStitchValidity(model) {
+            if (!model || model.userData.stitchType === 'castOn') return;
+            const flat = model.userData.flatPos || model.position;
+            const backPos = flat.clone().add(getBackOffset(model.userData.effectiveStep));
+            const hasBack = voxelMatrix[getMatrixKey(backPos)] !== undefined;
+            setModelColor(model, hasBack ? model.userData.originalColor : RED);
+        }
+
+        function revalidateNeighbors(flatPos) {
+            for (let s = 0; s < 4; s++) {
+                const frontOffset = getBackOffset(s).clone().negate();
+                const candidateKey = getMatrixKey(flatPos.clone().add(frontOffset));
+                const candidate = voxelMatrix[candidateKey];
+                if (candidate && candidate.userData.effectiveStep === s) {
+                    updateStitchValidity(candidate);
+                }
+            }
+        }
+
+        function loadStitch(key, filename, rotationY = Math.PI / 2, rotationX = 0, offsetZ = 0, offsetX = 0, mirrorX = false) {
+            const loader = new GLTFLoader();
+            loader.load(filename, function (gltf) {
+                const proto = gltf.scene;
+                proto.rotation.y = rotationY;
+                proto.rotation.x = rotationX;
+                proto.position.z = offsetZ;
+                proto.position.x = offsetX;
+                const box = new THREE.Box3().setFromObject(proto);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const s = 80 / maxDim;
+                proto.scale.set(s, s, mirrorX ? -s : s);
+                modelPrototypes[key] = proto;
+                const btn = document.querySelector(`.stitch-btn[data-stitch="${key}"]`);
+                if (btn) btn.classList.remove('loading');
+            }, undefined, (error) => {
+                console.error(`Failed to load ${filename}`, error);
+            });
+        }
+
+        loadStitch('knit',   'Knit_A.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('castOn', 'Cast ON.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('purl',   'Purl_A.glb',  Math.PI / 2 + Math.PI, 0, 0, 0, true);
+
+
+        init();
+        setupUI();
+        animate();
+
+        function init() {
+            camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+            setTopDownView();
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0xf0f0f0 );
+
+            const rollOverGeo = new THREE.BoxGeometry( 50, 50, 50 );
+            rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
+            rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+            scene.add( rollOverMesh );
+
+            gridHelper = new THREE.GridHelper( 1000, 20 );
+            scene.add( gridHelper );
+
+            raycaster = new THREE.Raycaster();
+            pointer = new THREE.Vector2();
+
+            const geometry = new THREE.PlaneGeometry( 1000, 1000 );
+            geometry.rotateX( - Math.PI / 2 );
+            plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+            scene.add( plane );
+            objects.push( plane );
+
+            const ambientLight = new THREE.AmbientLight( 0xffffff, 2 );
+            scene.add( ambientLight );
+            const directionalLight = new THREE.DirectionalLight( 0xffffff, 2 );
+            directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+            scene.add( directionalLight );
+            const directionalLight2 = new THREE.DirectionalLight( 0xffffff, 1 );
+            directionalLight2.position.set( -1, 0.5, -0.5 ).normalize();
+            scene.add( directionalLight2 );
+
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.4;
+            controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+
+            window.addEventListener( 'pointermove', onPointerMove );
+            window.addEventListener( 'pointerdown', onPointerDown );
+            window.addEventListener( 'keydown', (e) => { if (e.keyCode === 16) isShiftDown = true; } );
+            window.addEventListener( 'keyup', (e) => { if (e.keyCode === 16) isShiftDown = false; } );
+            window.addEventListener( 'pointerup', (e) => { if (e.button === 0) { isLeftDown = false; lastPlacedKey = null; } } );
+            window.addEventListener( 'resize', onWindowResize );
+            window.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        function setTopDownView() {
+            camera.position.set(0, 1500, 0);
+            camera.lookAt(0, 0, 0);
+            if (controls) {
+                controls.target.set(0, 0, 0);
+                controls.reset();
+                controls.update();
+            }
+        }
+
+        function setupUI() {
+            const layerText = document.getElementById('layerNum');
+            document.getElementById('upLayer').onclick = () => { currentLayer++; updatePlane(); };
+            document.getElementById('downLayer').onclick = () => { if(currentLayer > 0) currentLayer--; updatePlane(); };
+            document.getElementById('resetLayer').onclick = () => { currentLayer = 0; updatePlane(); };
+            document.getElementById('topDownBtn').onclick = () => setTopDownView();
+
+            function updatePlane() {
+                layerText.innerText = currentLayer;
+                plane.position.y = currentLayer * GRID_STEP;
+                if (window._updateCompass) window._updateCompass();
+                if (bendFactor > 0) updateBentGrid();
+            }
+
+            document.querySelectorAll('.stitch-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.classList.contains('loading')) return;
+                    activeStitch = btn.dataset.stitch;
+                    document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+                function getEffectiveStep() {
+                return (currentLayer % 2 === 0)
+                    ? placementRotationStep
+                    : (placementRotationStep + 2) % 4;
+            }
+
+            function updateCompass() {
+                const effective = getEffectiveStep();
+                document.querySelectorAll('.dir-btn').forEach(b => {
+                    const dir = parseInt(b.dataset.dir);
+                    b.classList.toggle('active', dir === effective);
+                    b.classList.toggle('base', dir === placementRotationStep && dir !== effective);
+                });
+            }
+
+            document.querySelectorAll('.dir-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    placementRotationStep = parseInt(btn.dataset.dir);
+                    updateCompass();
+                });
+            });
+
+            // expose so layer buttons can trigger it
+            window._updateCompass = updateCompass;
+
+            document.getElementById('colourPicker').addEventListener('input', (e) => {
+                activeColor = new THREE.Color(e.target.value);
+            });
+
+            document.getElementById('bendSlider').addEventListener('input', (e) => {
+                bendFactor = parseFloat(e.target.value);
+                updateAllBends();
+                updateBentGrid();
+            });
+
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                const keys = Object.keys(voxelMatrix);
+                if (keys.length === 0) {
+                    alert('Nothing to export — place some stitches first!');
+                    return;
+                }
+                const exportGroup = new THREE.Group();
+                keys.forEach(k => exportGroup.add(voxelMatrix[k].clone()));
+
+                const exporter = new OBJExporter();
+                const result = exporter.parse(exportGroup);
+                const blob = new Blob([result], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'knit_model.obj';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function placeVoxel(intersect) {
+            if (!modelPrototypes[activeStitch]) return;
+
+            const model = modelPrototypes[activeStitch].clone();
+            const effectiveStep = (currentLayer % 2 === 0)
+                ? placementRotationStep
+                : (placementRotationStep + 2) % 4;
+            model.rotation.y += effectiveStep * (Math.PI / 2);
+            model.position.copy(intersect.point).add(intersect.face.normal);
+            model.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+            model.position.y = (currentLayer * GRID_STEP) + 25;
+
+            const currentKey = getMatrixKey(model.position);
+            if (currentKey === lastPlacedKey) return;   // same cell, skip
+            if (voxelMatrix[currentKey]) return;         // already occupied
+            lastPlacedKey = currentKey;
+
+            // Remove red support cube from block above if present
+            const posAbove = model.position.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && modelAbove.userData.supportCube) {
+                scene.remove(modelAbove.userData.supportCube);
+                modelAbove.userData.supportCube = null;
+            }
+
+            // Stability check — spawn red cube if unsupported
+            const posUnder = model.position.clone();
+            posUnder.y -= GRID_STEP;
+            const isSupported = (currentLayer === 0) || (voxelMatrix[getMatrixKey(posUnder)] !== undefined);
+            if (!isSupported) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(posUnder);
+                scene.add(supportCube);
+                model.userData.supportCube = supportCube;
+            }
+
+            model.userData.stitchType = activeStitch;
+            model.userData.originalColor = activeColor.clone();
+            model.userData.effectiveStep = effectiveStep;
+            model.userData.flatPos = model.position.clone();
+            model.userData.baseRotY = model.rotation.y;
+            model.userData.baseQuat = model.quaternion.clone();
+            model.userData.matrixKey = currentKey;
+
+            voxelMatrix[currentKey] = model;
+            scene.add(model);
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    if (!child.geometry.attributes.normal) {
+                        child.geometry.computeVertexNormals();
+                    }
+                    const mat = new THREE.MeshStandardMaterial({
+                        color:     activeColor.clone(),
+                        roughness: 0.75,
+                        metalness: 0.15,
+                    });
+                    mat.onBeforeCompile = (shader) => {
+                        shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
+                        shader.uniforms.uFresnelPower = { value: 2.0 };
+                        shader.uniforms.uFresnelStr   = { value: 0.6 };
+                        shader.fragmentShader = `
+                            uniform vec3  uFresnelColor;
+                            uniform float uFresnelPower;
+                            uniform float uFresnelStr;
+                        ` + shader.fragmentShader;
+                        shader.fragmentShader = shader.fragmentShader.replace(
+                            '#include <output_fragment>',
+                            `#include <output_fragment>
+                            float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
+                            gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
+                        );
+                    };
+                    child.material = mat;
+                    objects.push(child);
+                    meshToModel.set(child, model);
+                }
+            });
+            // Validate after materials are set so color override takes effect
+            updateStitchValidity(model);
+            revalidateNeighbors(model.userData.flatPos);
+            applyBendToModel(model);
+        }
+
+        function deleteVoxel(intersect) {
+            const rootModel = meshToModel.get(intersect.object);
+            if (!rootModel) return;
+
+            const deletedPos = rootModel.userData.flatPos.clone();
+            delete voxelMatrix[rootModel.userData.matrixKey];
+
+            if (rootModel.userData.supportCube) {
+                scene.remove(rootModel.userData.supportCube);
+            }
+
+            const posAbove = deletedPos.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && !modelAbove.userData.supportCube) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(deletedPos);
+                scene.add(supportCube);
+                modelAbove.userData.supportCube = supportCube;
+            }
+
+            rootModel.traverse((child) => {
+                if (child.isMesh) {
+                    objects.splice(objects.indexOf(child), 1);
+                    meshToModel.delete(child);
+                }
+            });
+            scene.remove(rootModel);
+            revalidateNeighbors(deletedPos);
+        }
+
+        function onPointerMove( event ) {
+            pointer.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+            raycaster.setFromCamera( pointer, camera );
+            const intersects = raycaster.intersectObjects( objects, false );
+            if ( intersects.length > 0 ) {
+                const intersect = intersects[ 0 ];
+                rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+                rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                rollOverMesh.position.y = (currentLayer * GRID_STEP) + 25;
+
+                if (isLeftDown) {
+                    isShiftDown ? deleteVoxel(intersect) : placeVoxel(intersect);
+                }
+            }
+        }
+
+        function onPointerDown(event) {
+            if (event.button !== 0) return;
+            if (event.target.closest('#controls, #stitch-picker')) return;
+            isLeftDown = true;
+            lastPlacedKey = null;
+
+            pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(objects, false);
+
+            if (intersects.length > 0) {
+                isShiftDown ? deleteVoxel(intersects[0]) : placeVoxel(intersects[0]);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
