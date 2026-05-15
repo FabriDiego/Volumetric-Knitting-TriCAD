@@ -92,6 +92,28 @@
             border-color: #08f; color: #08f;
             border-style: dashed;
         }
+
+        .edge-btn-group {
+            position: absolute;
+            pointer-events: all;
+            display: flex;
+            gap: 3px;
+            transform: translate(-50%, -50%);
+        }
+        .edge-vert  { flex-direction: column; }
+        .edge-horiz { flex-direction: row; }
+        .edge-btn {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 1px solid rgba(100,100,100,0.6);
+            background: rgba(255,255,255,0.85);
+            font-size: 14px; font-weight: bold;
+            line-height: 1; padding: 0;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .edge-btn:hover { background: #08f; color: white; border-color: #08f; }
     </style>
 </head>
 <body>
@@ -108,7 +130,11 @@
         <button id="downLayer">↓ Previous Layer</button>
         <button id="resetLayer">Reset to Floor</button>
         <button id="topDownBtn">Reset Top-Down View</button>
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
         <button id="exportBtn">⬇ Export OBJ</button>
+        <button id="abstractModeBtn">⬡ Abstract</button>
+        <button id="exportChartBtn">📄 Export Chart</button>
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
         <label style="font-size:0.8em;color:#888;text-align:center;">Circular Knitting</label>
         <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
     </div>
@@ -173,11 +199,205 @@
         const objects = [];
         const meshToModel = new Map();
 
+        let abstractMode = false;
+        const abstractTextures = {};
+
+        function loadAbstractTextures() {
+            const loader = new THREE.TextureLoader();
+            abstractTextures.knit   = loader.load('Knit.png');
+            abstractTextures.castOn = loader.load('Cast ON.png');
+            abstractTextures.purl   = loader.load('Purl.png');
+        }
+
+        function makeAbstractSprite(stitchType, color) {
+            const tex = abstractTextures[stitchType] || abstractTextures.knit;
+            const mat = new THREE.SpriteMaterial({ map: tex, color: color.clone(), transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(GRID_STEP * 0.85, GRID_STEP * 0.85, 1);
+            sprite.visible = false;
+            return sprite;
+        }
+
+        function toggleAbstractMode() {
+            abstractMode = !abstractMode;
+            Object.values(voxelMatrix).forEach(model => {
+                model.visible = !abstractMode;
+                if (model.userData.abstractSprite) model.userData.abstractSprite.visible = abstractMode;
+            });
+            const btn = document.getElementById('abstractModeBtn');
+            btn.textContent = abstractMode ? '⬡ Geometry' : '⬡ Abstract';
+        }
+
+        async function exportAbstractChart() {
+            const stitchList = Object.values(voxelMatrix);
+            if (stitchList.length === 0) { alert('No stitches to export.'); return; }
+
+            // Load PNGs fresh into Image elements for canvas drawing
+            const imgSrcs = { knit: 'Knit.png', castOn: 'Cast ON.png', purl: 'Purl.png' };
+            const imgs = {};
+            await Promise.all(Object.entries(imgSrcs).map(([key, src]) =>
+                new Promise(res => {
+                    const img = new Image();
+                    img.onload  = () => { imgs[key] = img; res(); };
+                    img.onerror = () => res();
+                    img.src = src;
+                })
+            ));
+
+            // Group stitches by layer
+            const layerMap = {};
+            stitchList.forEach(model => {
+                const layer = Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
+                (layerMap[layer] = layerMap[layer] || []).push(model);
+            });
+            const layers = Object.keys(layerMap).map(Number).sort((a, b) => a - b);
+
+            const cellSize = Math.max(20, Math.min(40, Math.floor(680 / Math.max(gridDivisionsX, 1))));
+            const numMargin = cellSize * 0.7;  // space for row/col numbers
+            const pad = 8;
+            const gridPxW = gridDivisionsX * cellSize;
+            const gridPxH = gridDivisionsZ * cellSize;
+            const canvasW = numMargin + gridPxW + pad;
+            const canvasH = pad + gridPxH + numMargin;
+
+            const pages = layers.map(layer => {
+                const canvas = document.createElement('canvas');
+                canvas.width  = canvasW;
+                canvas.height = canvasH;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                const ox = numMargin;   // grid left edge in canvas
+                const oy = pad;         // grid top edge in canvas
+
+                // Color fill + symbol per stitch
+                layerMap[layer].forEach(model => {
+                    const flat = model.userData.flatPos;
+                    const col = Math.floor((flat.x - gridMinX) / GRID_STEP);
+                    const row = Math.floor((flat.z - gridMinZ) / GRID_STEP);
+                    if (col < 0 || col >= gridDivisionsX || row < 0 || row >= gridDivisionsZ) return;
+                    const cx = ox + col * cellSize;
+                    const cy = oy + row * cellSize;
+
+                    // Tinted background
+                    ctx.fillStyle = '#' + model.userData.originalColor.getHexString();
+                    ctx.globalAlpha = 0.25;
+                    ctx.fillRect(cx, cy, cellSize, cellSize);
+                    ctx.globalAlpha = 1;
+
+                    // Symbol image
+                    const img = imgs[model.userData.stitchType];
+                    if (img) ctx.drawImage(img, cx + 1, cy + 1, cellSize - 2, cellSize - 2);
+                });
+
+                // Grid lines
+                ctx.strokeStyle = '#bbb';
+                ctx.lineWidth = 0.5;
+                for (let c = 0; c <= gridDivisionsX; c++) {
+                    ctx.beginPath();
+                    ctx.moveTo(ox + c * cellSize, oy);
+                    ctx.lineTo(ox + c * cellSize, oy + gridPxH);
+                    ctx.stroke();
+                }
+                for (let r = 0; r <= gridDivisionsZ; r++) {
+                    ctx.beginPath();
+                    ctx.moveTo(ox, oy + r * cellSize);
+                    ctx.lineTo(ox + gridPxW, oy + r * cellSize);
+                    ctx.stroke();
+                }
+
+                // Outer border
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(ox, oy, gridPxW, gridPxH);
+
+                // Row numbers on left — count from bottom up (knitting convention)
+                const fontSize = Math.max(8, Math.min(11, cellSize * 0.4));
+                ctx.font = `${fontSize}px sans-serif`;
+                ctx.fillStyle = '#555';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                for (let r = 0; r < gridDivisionsZ; r++) {
+                    ctx.fillText(gridDivisionsZ - r, ox - 3, oy + r * cellSize + cellSize / 2);
+                }
+
+                // Column numbers on bottom
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                for (let c = 0; c < gridDivisionsX; c++) {
+                    ctx.fillText(c + 1, ox + c * cellSize + cellSize / 2, oy + gridPxH + 3);
+                }
+
+                return { canvas, layer };
+            });
+
+            // Build print window using only DOM APIs — no HTML strings in source
+            const win = window.open('', '_blank');
+            if (!win) { alert('Pop-up was blocked. Please allow pop-ups for this page and try again.'); return; }
+
+            const doc = win.document;
+            doc.title = 'Knitting Chart';
+
+            const style = doc.createElement('style');
+            style.textContent = [
+                '* { box-sizing: border-box; }',
+                'body { font-family: sans-serif; background: #fff; margin: 0; }',
+                '.page { padding: 24px; text-align: center; page-break-after: always; }',
+                '.layer-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; }',
+                'img { max-width: 100%; }',
+                '.no-print { text-align: center; padding: 16px; }',
+                '.no-print button { padding: 10px 24px; font-size: 1em; cursor: pointer; }',
+                '@media print { .no-print { display: none; } .page { page-break-after: always; padding: 10mm; } }'
+            ].join(' ');
+            doc.head.appendChild(style);
+
+            const printDiv = doc.createElement('div');
+            printDiv.className = 'no-print';
+            const printBtn = doc.createElement('button');
+            printBtn.textContent = 'Print / Save as PDF';
+            printBtn.onclick = () => win.print();
+            printDiv.appendChild(printBtn);
+            doc.body.appendChild(printDiv);
+
+            for (const { canvas, layer } of pages) {
+                const pageDiv = doc.createElement('div');
+                pageDiv.className = 'page';
+                const titleEl = doc.createElement('div');
+                titleEl.className = 'layer-title';
+                titleEl.textContent = 'Layer ' + layer;
+                pageDiv.appendChild(titleEl);
+                try {
+                    const img = doc.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    pageDiv.appendChild(img);
+                } catch (e) {
+                    const p = doc.createElement('p');
+                    p.textContent = 'Layer ' + layer + ' could not render.';
+                    pageDiv.appendChild(p);
+                }
+                doc.body.appendChild(pageDiv);
+            }
+        }
+
         // --- THE 3D MATRIX ---
         const voxelMatrix = {};
 
         let bendFactor = 0;
-        const GRID_WIDTH = 1000;
+        let gridMinX = -500, gridMaxX = 500;
+        let gridMinZ = -500, gridMaxZ = 500;
+        let GRID_WIDTH_X = gridMaxX - gridMinX;
+        let GRID_WIDTH_Z = gridMaxZ - gridMinZ;
+        let gridDivisionsX = GRID_WIDTH_X / GRID_STEP;
+        let gridDivisionsZ = GRID_WIDTH_Z / GRID_STEP;
+
+        function syncGridDimensions() {
+            GRID_WIDTH_X = gridMaxX - gridMinX;
+            GRID_WIDTH_Z = gridMaxZ - gridMinZ;
+            gridDivisionsX = GRID_WIDTH_X / GRID_STEP;
+            gridDivisionsZ = GRID_WIDTH_Z / GRID_STEP;
+        }
 
         function applyBendToModel(model) {
             const flat = model.userData.flatPos;
@@ -185,17 +405,20 @@
             if (bendFactor === 0) {
                 model.position.copy(flat);
                 if (model.userData.baseQuat) model.quaternion.copy(model.userData.baseQuat);
+                if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(flat);
                 return;
             }
             const totalAngle = 2 * Math.PI * bendFactor;
-            const radius = GRID_WIDTH / totalAngle;
-            // X wraps downward: centre stays at Y=0, edges curve under the plane
-            const angle = (flat.x / GRID_WIDTH) * totalAngle;
+            const centerX = (gridMinX + gridMaxX) / 2;
+            const radius = GRID_WIDTH_X / totalAngle;
+            // X wraps downward around the grid centre column
+            const angle = ((flat.x - centerX) / GRID_WIDTH_X) * totalAngle;
             model.position.set(
                 Math.sin(angle) * radius,
                 flat.y + (Math.cos(angle) - 1) * radius,
                 flat.z
             );
+            if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(model.position);
             // Tilt the stitch to stay tangent to the cylinder surface (rotate around Z)
             const qBend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
             model.quaternion.copy(qBend.multiply((model.userData.baseQuat || new THREE.Quaternion()).clone()));
@@ -205,25 +428,59 @@
             Object.values(voxelMatrix).forEach(applyBendToModel);
         }
 
+        function makeFlatGridHelper() {
+            const pts = [];
+            for (let x = gridMinX; x <= gridMaxX + 0.1; x += GRID_STEP)
+                pts.push(x, 0, gridMinZ,  x, 0, gridMaxZ);
+            for (let z = gridMinZ; z <= gridMaxZ + 0.1; z += GRID_STEP)
+                pts.push(gridMinX, 0, z,  gridMaxX, 0, z);
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+            return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x888888 }));
+        }
+
+        function recreateGrid() {
+            syncGridDimensions();
+            const cx = (gridMinX + gridMaxX) / 2;
+            const cz = (gridMinZ + gridMaxZ) / 2;
+
+            if (gridHelper) { scene.remove(gridHelper); gridHelper.geometry.dispose(); }
+            gridHelper = makeFlatGridHelper();
+            scene.add(gridHelper);
+
+            const idx = objects.indexOf(plane);
+            if (idx !== -1) objects.splice(idx, 1);
+            scene.remove(plane);
+            plane.geometry.dispose();
+            const geo = new THREE.PlaneGeometry(GRID_WIDTH_X, GRID_WIDTH_Z);
+            geo.rotateX(-Math.PI / 2);
+            plane = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
+            plane.position.set(cx, currentLayer * GRID_STEP, cz);
+            scene.add(plane);
+            objects.push(plane);
+
+            updateBentGrid();
+        }
+
         function updateBentGrid() {
             if (bentGridHelper) { scene.remove(bentGridHelper); bentGridHelper.geometry.dispose(); bentGridHelper = null; }
             if (bendFactor === 0) { gridHelper.visible = true; return; }
             gridHelper.visible = false;
 
             const totalAngle = 2 * Math.PI * bendFactor;
-            const radius = GRID_WIDTH / totalAngle;
-            const divisions = 20;
+            const centerX = (gridMinX + gridMaxX) / 2;
+            const radius = GRID_WIDTH_X / totalAngle;
             const segs = 64;
-            const halfW = GRID_WIDTH / 2;
-            const step = GRID_WIDTH / divisions;
             const pts = [];
 
-            // Cross-sectional arcs in XY plane — one per Z-step (grid depth lines become rings)
-            for (let zi = 0; zi <= divisions; zi++) {
-                const z = -halfW + zi * step;
+            // Cross-sectional arcs at each Z grid line
+            for (let zi = 0; zi <= gridDivisionsZ; zi++) {
+                const z = gridMinZ + zi * GRID_STEP;
                 for (let si = 0; si < segs; si++) {
-                    const a1 = (-halfW + (si / segs) * GRID_WIDTH) / GRID_WIDTH * totalAngle;
-                    const a2 = (-halfW + ((si + 1) / segs) * GRID_WIDTH) / GRID_WIDTH * totalAngle;
+                    const x1 = gridMinX + (si / segs) * GRID_WIDTH_X;
+                    const x2 = gridMinX + ((si + 1) / segs) * GRID_WIDTH_X;
+                    const a1 = (x1 - centerX) / GRID_WIDTH_X * totalAngle;
+                    const a2 = (x2 - centerX) / GRID_WIDTH_X * totalAngle;
                     pts.push(
                         Math.sin(a1) * radius, (Math.cos(a1) - 1) * radius, z,
                         Math.sin(a2) * radius, (Math.cos(a2) - 1) * radius, z
@@ -231,12 +488,13 @@
                 }
             }
 
-            // Longitudinal lines along Z axis — one per X-step (grid width lines stay as Z lines)
-            for (let xi = 0; xi <= divisions; xi++) {
-                const a = (-halfW + xi * step) / GRID_WIDTH * totalAngle;
+            // Longitudinal lines at each X grid line
+            for (let xi = 0; xi <= gridDivisionsX; xi++) {
+                const x = gridMinX + xi * GRID_STEP;
+                const a = (x - centerX) / GRID_WIDTH_X * totalAngle;
                 const cx = Math.sin(a) * radius;
                 const cy = (Math.cos(a) - 1) * radius;
-                pts.push(cx, cy, -halfW,  cx, cy, halfW);
+                pts.push(cx, cy, gridMinZ,  cx, cy, gridMaxZ);
             }
 
             const geo = new THREE.BufferGeometry();
@@ -269,6 +527,7 @@
             model.traverse(child => {
                 if (child.isMesh && child.material) child.material.color.set(color);
             });
+            if (model.userData.abstractSprite) model.userData.abstractSprite.material.color.set(color);
         }
 
         const RED = new THREE.Color(0xff2020);
@@ -316,6 +575,7 @@
         loadStitch('knit',   'Knit_A.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
         loadStitch('castOn', 'Cast ON.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
         loadStitch('purl',   'Purl_A.glb',  Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadAbstractTextures();
 
 
         init();
@@ -334,13 +594,13 @@
             rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
             scene.add( rollOverMesh );
 
-            gridHelper = new THREE.GridHelper( 1000, 20 );
+            gridHelper = makeFlatGridHelper();
             scene.add( gridHelper );
 
             raycaster = new THREE.Raycaster();
             pointer = new THREE.Vector2();
 
-            const geometry = new THREE.PlaneGeometry( 1000, 1000 );
+            const geometry = new THREE.PlaneGeometry( GRID_WIDTH_X, GRID_WIDTH_Z );
             geometry.rotateX( - Math.PI / 2 );
             plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
             scene.add( plane );
@@ -436,11 +696,38 @@
                 activeColor = new THREE.Color(e.target.value);
             });
 
+            function stitchAtX(x) {
+                return Object.values(voxelMatrix).some(m => Math.abs(m.userData.flatPos.x - x) < GRID_STEP / 2);
+            }
+            function stitchAtZ(z) {
+                return Object.values(voxelMatrix).some(m => Math.abs(m.userData.flatPos.z - z) < GRID_STEP / 2);
+            }
+
+            document.getElementById('colAddLeft').onclick  = () => { gridMinX -= GRID_STEP; recreateGrid(); };
+            document.getElementById('colRemLeft').onclick  = () => {
+                if (gridDivisionsX > 2 && !stitchAtX(gridMinX + GRID_STEP / 2)) { gridMinX += GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('colAddRight').onclick = () => { gridMaxX += GRID_STEP; recreateGrid(); };
+            document.getElementById('colRemRight').onclick = () => {
+                if (gridDivisionsX > 2 && !stitchAtX(gridMaxX - GRID_STEP / 2)) { gridMaxX -= GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('rowAddFront').onclick = () => { gridMinZ -= GRID_STEP; recreateGrid(); };
+            document.getElementById('rowRemFront').onclick = () => {
+                if (gridDivisionsZ > 2 && !stitchAtZ(gridMinZ + GRID_STEP / 2)) { gridMinZ += GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('rowAddBack').onclick  = () => { gridMaxZ += GRID_STEP; recreateGrid(); };
+            document.getElementById('rowRemBack').onclick  = () => {
+                if (gridDivisionsZ > 2 && !stitchAtZ(gridMaxZ - GRID_STEP / 2)) { gridMaxZ -= GRID_STEP; recreateGrid(); }
+            };
+
             document.getElementById('bendSlider').addEventListener('input', (e) => {
                 bendFactor = parseFloat(e.target.value);
                 updateAllBends();
                 updateBentGrid();
             });
+
+            document.getElementById('abstractModeBtn').addEventListener('click', toggleAbstractMode);
+            document.getElementById('exportChartBtn').addEventListener('click', exportAbstractChart);
 
             document.getElementById('exportBtn').addEventListener('click', () => {
                 const keys = Object.keys(voxelMatrix);
@@ -512,6 +799,12 @@
 
             voxelMatrix[currentKey] = model;
             scene.add(model);
+            model.visible = !abstractMode;
+            const sprite = makeAbstractSprite(activeStitch, activeColor);
+            sprite.position.copy(model.position);
+            sprite.visible = abstractMode;
+            scene.add(sprite);
+            model.userData.abstractSprite = sprite;
             model.traverse((child) => {
                 if (child.isMesh) {
                     if (!child.geometry.attributes.normal) {
@@ -578,6 +871,10 @@
                     meshToModel.delete(child);
                 }
             });
+            if (rootModel.userData.abstractSprite) {
+                scene.remove(rootModel.userData.abstractSprite);
+                rootModel.userData.abstractSprite.material.dispose();
+            }
             scene.remove(rootModel);
             revalidateNeighbors(deletedPos);
         }
@@ -619,11 +916,53 @@
             renderer.setSize( window.innerWidth, window.innerHeight );
         }
 
+        function updateGridEdgeBtns() {
+            const rect = renderer.domElement.getBoundingClientRect();
+            const cX = (gridMinX + gridMaxX) / 2;
+            const cZ = (gridMinZ + gridMaxZ) / 2;
+            const pad = GRID_STEP * 1.5;
+            const edges = [
+                { id: 'edge-left',  pos: new THREE.Vector3(gridMinX - pad, 0, cZ) },
+                { id: 'edge-right', pos: new THREE.Vector3(gridMaxX + pad, 0, cZ) },
+                { id: 'edge-front', pos: new THREE.Vector3(cX, 0, gridMinZ - pad) },
+                { id: 'edge-back',  pos: new THREE.Vector3(cX, 0, gridMaxZ + pad) },
+            ];
+            edges.forEach(({ id, pos }) => {
+                const v = pos.clone().project(camera);
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (v.z > 1) { el.style.display = 'none'; return; }
+                el.style.display = '';
+                el.style.left = (rect.left + (v.x + 1) / 2 * rect.width)  + 'px';
+                el.style.top  = (rect.top  + (-v.y + 1) / 2 * rect.height) + 'px';
+            });
+        }
+
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
             renderer.render(scene, camera);
+            updateGridEdgeBtns();
         }
     </script>
+
+    <div id="grid-edge-btns" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;">
+        <div id="edge-left"  class="edge-btn-group edge-vert">
+            <button id="colAddLeft"  class="edge-btn" title="Add column left">+</button>
+            <button id="colRemLeft"  class="edge-btn" title="Remove column left">−</button>
+        </div>
+        <div id="edge-right" class="edge-btn-group edge-vert">
+            <button id="colAddRight" class="edge-btn" title="Add column right">+</button>
+            <button id="colRemRight" class="edge-btn" title="Remove column right">−</button>
+        </div>
+        <div id="edge-front" class="edge-btn-group edge-horiz">
+            <button id="rowAddFront" class="edge-btn" title="Add row front">+</button>
+            <button id="rowRemFront" class="edge-btn" title="Remove row front">−</button>
+        </div>
+        <div id="edge-back"  class="edge-btn-group edge-horiz">
+            <button id="rowAddBack"  class="edge-btn" title="Add row back">+</button>
+            <button id="rowRemBack"  class="edge-btn" title="Remove row back">−</button>
+        </div>
+    </div>
 </body>
 </html>
