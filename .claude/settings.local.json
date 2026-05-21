@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"/mnt/c/Users/diego/iCloudDrive/Desktop/UA/Masterproef/TAAL/ThreeJS\" -name \"*.html\" 2>/dev/null || find \"/c/Users/diego/iCloudDrive/Desktop/UA/Masterproef/TAAL/ThreeJS\" -name \"*.html\" 2>/dev/null)"
+    ]
+  }
+}

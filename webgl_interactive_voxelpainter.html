@@ -410,6 +410,16 @@
         let activeStitch = 'knit';
         let placementRotationStep = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
         let isLeftDown = false;
+        let isRightDown = false;
+
+        function canDraw() {
+            if (isRightDown) return false; // camera is rotating
+            const helpOverlay = document.getElementById('helpOverlay');
+            if (helpOverlay && helpOverlay.classList.contains('open')) return false;
+            const tutorialPopup = document.getElementById('stitch-tutorial-popup');
+            if (tutorialPopup && tutorialPopup.style.display !== 'none' && tutorialPopup.style.display !== '') return false;
+            return true;
+        }
         let lastPlacedKey = null;
         let activeColor = new THREE.Color('#ff9de2');
         let strengthTestActive = false;
@@ -1404,6 +1414,10 @@
             scene.add(variant);
             model.userData._3dPurlGroup = variant;
             model.userData.is3DPurl = true;
+            if (model.userData.supportCube) {
+                scene.remove(model.userData.supportCube);
+                model.userData.supportCube = null;
+            }
             if (model.userData.abstractSprite && abstractTextures.purl3d) {
                 model.userData.abstractSprite.material.map = abstractTextures.purl3d;
                 model.userData.abstractSprite.material.needsUpdate = true;
@@ -1473,11 +1487,14 @@
             );
         }
 
-        // A purl upgrades to 3D when ANY stitch occupies the cover position above it.
+        // A purl upgrades to 3D when a stitch at its cover position faces the OPPOSITE
+        // direction — knitting rows alternate direction, so this is the correct neighbour.
         function refreshPurlVariant(purlModel) {
-            const cover = purlCoverPos(purlModel);
-            const above = voxelMatrix[getMatrixKey(cover)];
-            above ? upgradePurl(purlModel) : downgradePurl(purlModel);
+            const cover        = purlCoverPos(purlModel);
+            const above        = voxelMatrix[getMatrixKey(cover)];
+            const oppositeStep = (purlModel.userData.effectiveStep + 2) % 4;
+            const valid        = above && above.userData.effectiveStep === oppositeStep;
+            valid ? upgradePurl(purlModel) : downgradePurl(purlModel);
         }
 
         // When a stitch at flatPos is placed/removed, check all four horizontal neighbours
@@ -1728,18 +1745,50 @@
             model.userData.is3DCastOn = false;
         }
 
-        // Re-evaluate whether a castOn should show its 3D variant.
-        function refreshCastOnVariant(model) {
-            const pos   = model.userData.flatPos || model.position;
-            const above = voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y + GRID_STEP, pos.z))];
-            above ? upgradeCastOn(model) : downgradeCastOn(model);
+        // A castOn upgrades to 3D when a stitch appears one layer above it in the opposite
+        // facing direction (knitting rows always alternate direction).
+        function castOnHasStitchAbove(model) {
+            const fp           = model.userData.flatPos;
+            if (!fp) return false;
+            const step         = model.userData.effectiveStep ?? 0;
+            const oppositeStep = (step + 2) % 4;
+            const forward      = getBackOffset(step).clone().negate();
+            const back         = getBackOffset(step);
+            const yUp          = fp.y + GRID_STEP;
+
+            // Candidate positions: directly above, one-forward-one-up, one-back-one-up
+            const candidates = [
+                new THREE.Vector3(fp.x,             yUp, fp.z),
+                new THREE.Vector3(fp.x + forward.x, yUp, fp.z + forward.z),
+                new THREE.Vector3(fp.x + back.x,    yUp, fp.z + back.z),
+            ];
+            return candidates.some(pos => {
+                const m = voxelMatrix[getMatrixKey(pos)];
+                return m && m.userData.effectiveStep === oppositeStep;
+            });
         }
 
-        // When a stitch at flatPos is placed/removed, check if the castOn directly
-        // below it needs to flip between flat and 3D.
+        // Re-evaluate whether a castOn should show its 3D variant.
+        function refreshCastOnVariant(model) {
+            castOnHasStitchAbove(model) ? upgradeCastOn(model) : downgradeCastOn(model);
+        }
+
+        // When any stitch is placed/removed at flatPos, check all nearby positions one
+        // layer below — any castOn that could be "covered" by flatPos needs refreshing.
         function refreshCastOnVariantBelow(flatPos) {
-            const below = voxelMatrix[getMatrixKey(new THREE.Vector3(flatPos.x, flatPos.y - GRID_STEP, flatPos.z))];
-            if (below && below.userData.stitchType === 'castOn') refreshCastOnVariant(below);
+            const y = flatPos.y - GRID_STEP;
+            // Search directly below + 4 cardinal neighbours at layer below
+            const toCheck = [
+                new THREE.Vector3(flatPos.x,             y, flatPos.z),
+                new THREE.Vector3(flatPos.x - GRID_STEP, y, flatPos.z),
+                new THREE.Vector3(flatPos.x + GRID_STEP, y, flatPos.z),
+                new THREE.Vector3(flatPos.x, y, flatPos.z - GRID_STEP),
+                new THREE.Vector3(flatPos.x, y, flatPos.z + GRID_STEP),
+            ];
+            toCheck.forEach(pos => {
+                const m = voxelMatrix[getMatrixKey(pos)];
+                if (m && m.userData.stitchType === 'castOn') refreshCastOnVariant(m);
+            });
         }
 
         function sweepCastOnUpgrades() {
@@ -1806,6 +1855,30 @@
             rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
             scene.add( rollOverMesh );
 
+            // ── Layer reference: 4 corner poles + centre drop line + ground ──────
+            const _refMat  = new THREE.MeshBasicMaterial({ color: 0x0077ff, opacity: 0.9, transparent: true });
+            const _flatMat = new THREE.LineBasicMaterial({ color: 0x0077ff, opacity: 0.7, transparent: true });
+
+            // 4 corner cylinders (radius 3, unit height — scaled at runtime)
+            window._cornerPoles = [];
+            for (let i = 0; i < 4; i++) {
+                const m = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 8), _refMat);
+                m.visible = false;
+                scene.add(m);
+                window._cornerPoles.push(m);
+            }
+
+            // Layer tick marks: a small + at each layer height (layers 1 … currentLayer)
+            // Pre-allocate for up to 40 layers (4 vertices × 40 = 160 vertices)
+            const _MAX_TICK_LAYERS = 40;
+            const _tickBuf = new Float32Array(_MAX_TICK_LAYERS * 12); // 4 pts × 3 coords per +
+            const _tickGeo = new THREE.BufferGeometry();
+            _tickGeo.setAttribute('position', new THREE.BufferAttribute(_tickBuf, 3));
+            _tickGeo.setDrawRange(0, 0);
+            window._layerTicks = new THREE.LineSegments(_tickGeo, _flatMat);
+            window._layerTicks.visible = false;
+            scene.add(window._layerTicks);
+
             gridHelper = makeFlatGridHelper();
             scene.add( gridHelper );
 
@@ -1852,10 +1925,18 @@
                 }
             });
             window.addEventListener( 'keyup', (e) => { if (e.keyCode === 16) isShiftDown = false; } );
-            window.addEventListener( 'pointerup', (e) => { if (e.button === 0) { isLeftDown = false; lastPlacedKey = null; } } );
+            window.addEventListener( 'pointerup', (e) => {
+                if (e.button === 0) { isLeftDown = false; lastPlacedKey = null; }
+                if (e.button === 2) { isRightDown = false; }
+            });
+            window.addEventListener( 'pointerdown', (e) => {
+                if (e.button === 2) isRightDown = true;
+            }, true ); // capture phase so it runs before onPointerDown
             window.addEventListener( 'resize', onWindowResize );
             window.addEventListener('contextmenu', (e) => e.preventDefault());
+
         }
+
 
         function setTopDownView() {
             camera.position.set(0, 1500, 0);
@@ -2208,6 +2289,10 @@
             const rootModel = meshToModel.get(intersect.object);
             if (!rootModel) return;
 
+            // Only delete stitches on the currently active layer
+            const modelLayer = Math.round((rootModel.userData.flatPos.y - 25) / GRID_STEP);
+            if (modelLayer !== currentLayer) return;
+
             const deletedPos = rootModel.userData.flatPos.clone();
             undoStack.push({ type: 'delete', model: rootModel, key: rootModel.userData.matrixKey });
             redoStack.length = 0;
@@ -2382,6 +2467,8 @@
 
             if (connectorMode) {
                 rollOverMesh.visible = false;
+                if (window._cornerPoles) window._cornerPoles.forEach(p => p.visible = false);
+                if (window._layerTicks)  window._layerTicks.visible  = false;
 
                 // Find hovered stitch
                 let hovered = null;
@@ -2410,7 +2497,44 @@
                 rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
                 rollOverMesh.position.y = (currentLayer * GRID_STEP) + 25;
 
-                if (isLeftDown && !connectorMode) {
+                // ── Layer reference helpers ──────────────────────────────────────
+                const rx     = rollOverMesh.position.x;
+                const rz     = rollOverMesh.position.z;
+                const ry     = rollOverMesh.position.y;
+                const poleH  = ry - 25;   // distance from ground to bottom of selector
+                const showRef = currentLayer > 0 && poleH > 1;
+
+                // 4 corner cylinders — inset by radius (1) so they sit inside the square
+                const _offsets = [[-24,-24],[-24,24],[24,-24],[24,24]];
+                if (window._cornerPoles) {
+                    window._cornerPoles.forEach((pole, i) => {
+                        const [dx, dz] = _offsets[i];
+                        pole.position.set(rx + dx, poleH / 2, rz + dz);
+                        pole.scale.y = poleH;
+                        pole.visible = showRef;
+                    });
+                }
+                // Layer tick marks: + at each layer plane (1 … currentLayer)
+                if (window._layerTicks) {
+                    const buf  = window._layerTicks.geometry.attributes.position.array;
+                    const arm  = 11; // half-arm length of each +
+                    let   vi   = 0;
+                    const maxL = Math.min(currentLayer, 40);
+                    for (let l = 1; l <= maxL; l++) {
+                        const h = l * GRID_STEP; // layer plane height
+                        // horizontal arm (X)
+                        buf[vi++] = rx - arm; buf[vi++] = h; buf[vi++] = rz;
+                        buf[vi++] = rx + arm; buf[vi++] = h; buf[vi++] = rz;
+                        // depth arm (Z)
+                        buf[vi++] = rx; buf[vi++] = h; buf[vi++] = rz - arm;
+                        buf[vi++] = rx; buf[vi++] = h; buf[vi++] = rz + arm;
+                    }
+                    window._layerTicks.geometry.attributes.position.needsUpdate = true;
+                    window._layerTicks.geometry.setDrawRange(0, maxL * 4);
+                    window._layerTicks.visible = showRef;
+                }
+
+                if (isLeftDown && !connectorMode && canDraw()) {
                     isShiftDown ? deleteVoxel(intersect) : placeVoxel(intersect);
                 }
             }
@@ -2455,7 +2579,7 @@
                 return;
             }
 
-            if (intersects.length > 0 && !connectorMode) {
+            if (intersects.length > 0 && !connectorMode && canDraw()) {
                 isShiftDown ? deleteVoxel(intersects[0]) : placeVoxel(intersects[0]);
             }
         }
@@ -2545,6 +2669,8 @@
             models.forEach(model => {
                 const layer = Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
                 const inRange = !sectionEnabled || (layer >= botLayer && layer < topLayer);
+
+                // Flat geometry
                 model.traverse(c => {
                     if (!c.isMesh || !c.material) return;
                     c.material.color.copy(model.userData.originalColor);
@@ -2557,6 +2683,34 @@
                     }
                     c.material.needsUpdate = true;
                 });
+
+                // 3D purl variant
+                if (model.userData._3dPurlGroup) {
+                    model.userData._3dPurlGroup.traverse(c => {
+                        if (!c.isMesh || !c.material) return;
+                        c.material.transparent = true;
+                        c.material.opacity = inRange ? 1 : 0.12;
+                        c.material.needsUpdate = true;
+                    });
+                }
+
+                // 3D castOn variant
+                if (model.userData._3dCastOnGroup) {
+                    model.userData._3dCastOnGroup.traverse(c => {
+                        if (!c.isMesh || !c.material) return;
+                        c.material.transparent = true;
+                        c.material.opacity = inRange ? 1 : 0.12;
+                        c.material.needsUpdate = true;
+                    });
+                }
+
+                // Abstract sprite
+                if (model.userData.abstractSprite) {
+                    const sp = model.userData.abstractSprite;
+                    sp.material.transparent = true;
+                    sp.material.opacity = inRange ? 1 : 0.12;
+                    sp.material.needsUpdate = true;
+                }
             });
         }
 
