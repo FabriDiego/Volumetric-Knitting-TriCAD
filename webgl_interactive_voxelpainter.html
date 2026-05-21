@@ -17,8 +17,57 @@
         button { padding: 8px 12px; cursor: pointer; font-weight: bold; border: 1px solid #ccc; background: #fff; }
         button:hover { background: #eee; }
         #topDownBtn { background: #08f; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 10px;}
+        #strengthBtn { border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; background: #fff; }
+        #strengthBtn.active { background: #e63; color: #fff; }
         #exportBtn { background: #2a2; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; }
         .layer-display { font-size: 1.1em; text-align: center; font-weight: bold; color: #08f; }
+
+        #brand {
+            position: fixed; bottom: 16px; left: 20px;
+            font-size: 0.78em; color: #aaa; pointer-events: none;
+            font-style: italic; z-index: 50;
+        }
+        #helpBtn {
+            position: fixed; bottom: 16px; right: 20px;
+            width: 36px; height: 36px; border-radius: 50%;
+            background: #08f; color: #fff; font-size: 1.2em; font-weight: bold;
+            border: none; cursor: pointer; z-index: 200;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+        #helpBtn:hover { background: #06c; }
+
+        #helpOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45); z-index: 300;
+            align-items: center; justify-content: center;
+        }
+        #helpOverlay.open { display: flex; }
+        #helpModal {
+            background: #fff; border-radius: 14px;
+            padding: 32px 36px; max-width: 520px; width: 90%;
+            max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        #helpModal h2 { margin: 0 0 4px; font-size: 1.3em; color: #08f; }
+        #helpModal .subtitle { font-size: 0.82em; color: #aaa; margin-bottom: 20px; }
+        #helpModal h3 {
+            font-size: 0.8em; text-transform: uppercase;
+            letter-spacing: 0.07em; color: #888; margin: 18px 0 8px;
+        }
+        #helpModal ul { margin: 0; padding: 0 0 0 18px; line-height: 1.8; font-size: 0.92em; color: #444; }
+        #helpModal li span { font-weight: bold; color: #222; }
+        #helpModal .tip {
+            margin-top: 18px; padding: 12px 14px;
+            background: #f0f8ff; border-left: 3px solid #08f;
+            border-radius: 6px; font-size: 0.88em; color: #336; line-height: 1.6;
+        }
+        #closeHelp {
+            position: absolute; top: 14px; right: 16px;
+            background: none; border: none; font-size: 1.4em;
+            cursor: pointer; color: #aaa; line-height: 1;
+        }
+        #closeHelp:hover { color: #444; }
 
         #stitch-picker {
             position: absolute; top: 50px; right: 20px;
@@ -99,6 +148,11 @@
             display: flex;
             gap: 3px;
             transform: translate(-50%, -50%);
+            opacity: 0.15;
+            transition: opacity 0.15s;
+        }
+        .edge-btn-group:hover {
+            opacity: 1;
         }
         .edge-vert  { flex-direction: column; }
         .edge-horiz { flex-direction: row; }
@@ -114,6 +168,66 @@
             display: flex; align-items: center; justify-content: center;
         }
         .edge-btn:hover { background: #08f; color: white; border-color: #08f; }
+
+        #section-panel {
+            position: fixed;
+            right: 190px;
+            top: 60px;
+            bottom: 60px;
+            width: 28px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            z-index: 150;
+            pointer-events: none;
+        }
+        #section-slider-wrap {
+            position: relative;
+            flex: 1;
+            width: 8px;
+            background: rgba(0,0,0,0.15);
+            border-radius: 4px;
+            pointer-events: all;
+            cursor: pointer;
+        }
+        #section-range-fill {
+            position: absolute;
+            left: 0; right: 0;
+            background: rgba(0,136,255,0.35);
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        .section-handle {
+            position: absolute;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: #08f;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            cursor: ns-resize;
+            pointer-events: all;
+            touch-action: none;
+        }
+        .section-handle:hover { background: #06c; }
+        .section-label {
+            display: none;
+            position: absolute;
+            right: 26px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            font-weight: bold;
+            color: #08f;
+            white-space: nowrap;
+            pointer-events: none;
+            background: rgba(255,255,255,0.88);
+            padding: 1px 4px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .section-handle.dragging .section-label { display: block; }
 
         #stitch-tutorial-popup {
             position: fixed;
@@ -146,23 +260,87 @@
 </head>
 <body>
 
-    <div id="info">
-        <strong>Voxel Knitting by Diego Fabri</strong><br>
-        Left Click: Build | Shift + Left Click: Delete<br>
-        <strong>Right Click: Rotate Camera</strong> | Mouse Wheel: Zoom
+    <div id="brand">Voxel Knitting · Diego Fabri</div>
+
+    <button id="helpBtn">?</button>
+
+    <div id="helpOverlay">
+        <div id="helpModal">
+            <button id="closeHelp">×</button>
+            <h2>DigiKnit — Voxel Knitter</h2>
+            <div class="subtitle">by Diego Fabri</div>
+
+            <h3>🖱 Navigation</h3>
+            <ul>
+                <li><span>Left Click</span> — place a stitch</li>
+                <li><span>Shift + Left Click</span> — delete a stitch</li>
+                <li><span>Click &amp; Drag</span> — paint or erase multiple stitches</li>
+                <li><span>Right Click + Drag</span> — rotate the camera</li>
+                <li><span>Mouse Wheel</span> — zoom in / out</li>
+                <li><span>Ctrl + Z</span> — undo last action</li>
+                <li><span>+ / −</span> grid buttons — resize the voxel grid</li>
+            </ul>
+
+            <h3>🧶 Stitches</h3>
+            <ul>
+                <li><span>Knit</span> — standard knit loop, face side</li>
+                <li><span>Purl</span> — reverse knit loop, purl side</li>
+                <li><span>Cast On</span> — foundation row stitch</li>
+            </ul>
+
+            <h3>📐 Layers</h3>
+            <ul>
+                <li>Use <span>↑ / ↓ Layer</span> buttons to move between rows</li>
+                <li>To build on a second layer, the stitches <span>underneath should be Purls</span> — they provide the loop structure for the next row to anchor into</li>
+                <li>Odd layers automatically <span>flip orientation</span> to match knitting direction</li>
+            </ul>
+
+            <h3>👁 Views</h3>
+            <ul>
+                <li><span>Abstract View</span> — switches to knitspeak symbol notation, ideal for knitters who read traditional knitting charts</li>
+                <li><span>Section View</span> — slice through the model vertically to inspect inner structure</li>
+            </ul>
+
+            <h3>🔁 Circular Knitting</h3>
+            <ul>
+                <li>Circular knitting mode is included — wrap your rows into a tube or seamless round to simulate knitting in the round</li>
+            </ul>
+
+            <h3>💾 Save, Load &amp; Export</h3>
+            <ul>
+                <li><span>Save</span> — stores your model as a <code>.json</code> file</li>
+                <li><span>Load</span> — reopens a previously saved <code>.json</code></li>
+                <li><span>Export</span> — exports the 3D geometry to OBJ and other formats for use in external software</li>
+            </ul>
+
+            <h3>💪 Strength Test</h3>
+            <ul>
+                <li>Highlights structural weak points based on neighbour connectivity</li>
+                <li><span style="color:#e07030">Orange</span> = isolated / pivot risk &nbsp;·&nbsp; <span style="color:#44aa44">Green</span> = well connected</li>
+            </ul>
+
+            <div class="tip">
+                💡 <strong>Tip:</strong> always start with a Cast On row at layer 0, then switch to Knit for subsequent rows. Place Purls below any stitch that needs to support a layer above.
+            </div>
+        </div>
     </div>
 
     <div id="controls">
-        <button id="abstractModeBtn">Abstract mode</button>
-        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
-        <div class="layer-display">Current Layer: <span id="layerNum">0</span></div>
+        
+        <div class="layer-display" style="margin-bottom: 15px">Current Layer: <span id="layerNum">0</span></div>
         <button id="upLayer">↑ Next Layer</button>
         <button id="downLayer">↓ Previous Layer</button>
         <button id="resetLayer">Reset to Floor</button>
-       
         <button id="topDownBtn">Reset Top-Down View</button>
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
         
-        
+        <button id="abstractModeBtn">Abstract View</button>
+        <button id="sectionBtn">Section View</button>
+        <button id="strengthBtn"> Strength Simulation</button>
+        <label style="font-size:0.8em;color:#888;text-align:center;margin-top: 15px">Circular Knitting</label>
+        <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
+
+
         <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
         <button id="saveBtn">💾 Save</button>
         <button id="loadBtn">📂 Load</button>
@@ -171,16 +349,19 @@
         
         <button id="exportBtn">⬇ Export OBJ</button>
         <button id="exportChartBtn">📄 Export Chart</button>
-        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
-        <label style="font-size:0.8em;color:#888;text-align:center;">Circular Knitting</label>
-        <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
+       
+        
     </div>
 
     <div id="stitch-picker">
         <h3>Stitch</h3>
-        <button class="stitch-btn active loading" data-stitch="knit"    data-tutorial="Knit_A.glb">Knit</button>
         <button class="stitch-btn loading"        data-stitch="castOn" data-tutorial="__sweep__">Cast On</button>
-        <button class="stitch-btn loading"        data-stitch="purl"   data-tutorial="Purl_A.glb">Purl</button>
+        <button class="stitch-btn active loading" data-stitch="knit"    data-tutorial="__knit__">Knit</button>
+        <button class="stitch-btn loading"        data-stitch="purl"   data-tutorial="__purl__">Purl</button>
+        <button class="stitch-btn loading"        data-stitch="Tuck"   data-tutorial="__tuck__">Tuck</button>
+        <button class="stitch-btn loading"        data-stitch="Hinge"   data-tutorial="__hinge__">Hinge</button>
+        <button class="stitch-btn" data-stitch="connector">Connector</button>
+        <div id="connectorStatus" style="display:none;color:#08f;font-size:0.8em;text-align:center;padding:4px 2px;"></div>
 
         <div id="colour-row">
             <label>Colour</label>
@@ -215,6 +396,7 @@
     <script type="module">
        import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OBJLoader }  from 'three/addons/loaders/OBJLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 
@@ -230,6 +412,7 @@
         let isLeftDown = false;
         let lastPlacedKey = null;
         let activeColor = new THREE.Color('#ff9de2');
+        let strengthTestActive = false;
 
         let currentLayer = 0;
         const GRID_STEP = 50;
@@ -238,12 +421,17 @@
 
         let abstractMode = false;
         const abstractTextures = {};
+        let connectorMode = false;
+        let connectorStartModel = null;
+        let connectorHoverModel = null;
+        const connectors = [];
 
         function loadAbstractTextures() {
             const loader = new THREE.TextureLoader();
             abstractTextures.knit   = loader.load('Knit.png');
             abstractTextures.castOn = loader.load('Cast ON.png');
             abstractTextures.purl   = loader.load('Purl.png');
+            abstractTextures.purl3d = loader.load('3D Purl.png');
         }
 
         function makeAbstractSprite(stitchType, color) {
@@ -259,10 +447,12 @@
             abstractMode = !abstractMode;
             Object.values(voxelMatrix).forEach(model => {
                 model.visible = !abstractMode;
-                if (model.userData.abstractSprite) model.userData.abstractSprite.visible = abstractMode;
+                if (model.userData._3dPurlGroup)   model.userData._3dPurlGroup.visible   = !abstractMode;
+                if (model.userData._3dCastOnGroup) model.userData._3dCastOnGroup.visible = !abstractMode;
+                if (model.userData.abstractSprite) model.userData.abstractSprite.visible  = abstractMode;
             });
             const btn = document.getElementById('abstractModeBtn');
-            btn.textContent = abstractMode ? 'Geometry mode' : 'Abstract mode';
+            btn.textContent = abstractMode ? 'Geometry View' : 'Abstract View';
         }
 
         // ── Tutorial popup mini-renderer ─────────────────────────────────────
@@ -368,6 +558,257 @@
             document.getElementById('stitch-tutorial-popup').style.display = 'none';
             tutorialLoadToken++;
             if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+        }
+
+        // Uniform cubic B-spline through an arbitrary number of control points.
+        // Uses a clamped knot vector so the curve passes through the first and last points.
+        // Evaluated with the De Boor algorithm.
+        class BSplineCurve3 extends THREE.Curve {
+            constructor(points, degree = 3) {
+                super();
+                this.points = points;
+                this.degree = Math.min(degree, points.length - 1);
+            }
+            getPoint(t) {
+                const pts = this.points;
+                const n   = pts.length - 1;
+                const p   = this.degree;
+                const m   = n + p + 1;          // last knot index
+
+                // Clamped uniform knot vector
+                const knots = [];
+                for (let i = 0; i <= m; i++) {
+                    if      (i <= p)     knots.push(0);
+                    else if (i >= m - p) knots.push(1);
+                    else                 knots.push((i - p) / (m - 2 * p));
+                }
+
+                const u = Math.max(0, Math.min(1, t));
+
+                // Find knot span (last valid span for u=1)
+                let k = m - p - 1;
+                if (u < 1) {
+                    for (let i = p; i < m - p; i++) {
+                        if (u >= knots[i] && u < knots[i + 1]) { k = i; break; }
+                    }
+                }
+
+                // De Boor recursion
+                const d = [];
+                for (let j = 0; j <= p; j++) d.push(pts[k - p + j].clone());
+                for (let r = 1; r <= p; r++) {
+                    for (let j = p; j >= r; j--) {
+                        const i     = k - p + j;
+                        const denom = knots[i + p - r + 1] - knots[i];
+                        const alpha = denom === 0 ? 0 : (u - knots[i]) / denom;
+                        d[j].lerpVectors(d[j - 1], d[j], alpha);
+                    }
+                }
+                return d[p];
+            }
+        }
+
+        // Generic: load an OBJ that contains exactly two spline objects, show one static + one animated
+        function showDualSplineAnimation(objFile, label, buttonEl) {
+            const popup = document.getElementById('stitch-tutorial-popup');
+            document.getElementById('tutorial-label').textContent = 'How to: ' + label;
+            const pickerRect = document.getElementById('stitch-picker').getBoundingClientRect();
+            popup.style.top   = Math.max(10, pickerRect.top) + 'px';
+            popup.style.right = (window.innerWidth - pickerRect.left + 10) + 'px';
+            popup.style.display = 'flex';
+
+            if (tutorialModel)  { tutorialScene.remove(tutorialModel); tutorialModel = null; }
+            if (tutorialMixer)  { tutorialMixer.stopAllAction(); tutorialMixer = null; }
+            if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+            tutorialOrbitAngle = 0;
+            const token = ++tutorialLoadToken;
+
+            const group = new THREE.Group();
+            tutorialScene.add(group);
+            tutorialModel = group;
+
+            fetch(objFile).then(r => r.text()).then(text => {
+                if (token !== tutorialLoadToken) return;
+
+                // Parse all vertices (1-based index), then reconstruct each spline
+                // from its "l" line so shared vertices are resolved correctly.
+                const allVerts = [null]; // index 0 unused; OBJ is 1-based
+                const objects  = [];     // { name, lineIndices }
+                let pendingName = null;
+
+                for (const raw of text.split('\n')) {
+                    const line = raw.trim();
+                    if (line.startsWith('v ')) {
+                        const p = line.split(/\s+/);
+                        allVerts.push(new THREE.Vector3(+p[1], +p[2], +p[3]));
+                    } else if (line.startsWith('o ')) {
+                        pendingName = line.slice(2).trim();
+                    } else if (line.startsWith('l ') && pendingName !== null) {
+                        const indices = line.slice(2).trim().split(/\s+/).map(Number);
+                        objects.push({ name: pendingName, indices });
+                        pendingName = null;
+                    }
+                }
+
+                if (objects.length < 2) return;
+
+                const splines = objects.slice(0, 2).map(obj =>
+                    obj.indices.map(i => allVerts[i].clone())
+                );
+
+                const mat = () => new THREE.MeshLambertMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+
+                const yVals   = splines[0].map(p => p.y);
+                const stitchH = Math.max(...yVals) - Math.min(...yVals);
+                const trim    = n => (n.length > 10 ? n.slice(3, -3) : n);
+
+                const curve0     = new BSplineCurve3(trim(splines[0]));
+                const staticGeo  = new THREE.TubeGeometry(curve0, 300, 14, 14, false);
+                group.add(new THREE.Mesh(staticGeo, mat()));
+
+                const curve1  = new BSplineCurve3(trim(splines[1]));
+                const animGeo = new THREE.TubeGeometry(curve1, 300, 14, 14, false);
+                const animMesh = new THREE.Mesh(animGeo, mat());
+                const yMin0 = Math.min(...splines[0].map(p => p.y));
+                const yMin1 = Math.min(...splines[1].map(p => p.y));
+                animMesh.position.y = Math.abs(yMin1 - yMin0) > stitchH * 0.05 ? 0 : stitchH * 0.5;
+                group.add(animMesh);
+
+                group.rotation.y = Math.PI;
+
+                const box = new THREE.Box3().setFromObject(group);
+                group.userData._center = box.getCenter(new THREE.Vector3());
+                const sz = box.getSize(new THREE.Vector3());
+                group.userData._radius = Math.max(sz.x, sz.y, sz.z) * 1.3;
+
+                const totalIdx = animGeo.index.count;
+                let progress = 0;
+                tutorialClock.start();
+
+                function loop() {
+                    if (token !== tutorialLoadToken) return;
+                    tutorialAnimId = requestAnimationFrame(loop);
+                    const delta = tutorialClock.getDelta();
+                    progress += delta * 0.18;
+                    if (progress > 1.3) progress = 0;
+                    animGeo.setDrawRange(0, Math.floor(Math.min(progress, 1.0) * totalIdx));
+                    tutorialOrbitAngle += delta * 0.08;
+                    const c = group.userData._center;
+                    const r = group.userData._radius;
+                    tutorialCamera.position.set(
+                        c.x + Math.sin(tutorialOrbitAngle) * r,
+                        c.y + r * 0.15,
+                        c.z + Math.cos(tutorialOrbitAngle) * r
+                    );
+                    tutorialCamera.lookAt(c);
+                    tutorialRenderer.render(tutorialScene, tutorialCamera);
+                }
+                loop();
+            });
+        }
+
+        function showPurlAnimation(label, buttonEl) {
+            const popup = document.getElementById('stitch-tutorial-popup');
+            document.getElementById('tutorial-label').textContent = 'How to: ' + label;
+            const pickerRect = document.getElementById('stitch-picker').getBoundingClientRect();
+            popup.style.top   = Math.max(10, pickerRect.top) + 'px';
+            popup.style.right = (window.innerWidth - pickerRect.left + 10) + 'px';
+            popup.style.display = 'flex';
+
+            if (tutorialModel)  { tutorialScene.remove(tutorialModel); tutorialModel = null; }
+            if (tutorialMixer)  { tutorialMixer.stopAllAction(); tutorialMixer = null; }
+            if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+            tutorialOrbitAngle = Math.PI / 6;
+            const token = ++tutorialLoadToken;
+
+            const group = new THREE.Group();
+            tutorialScene.add(group);
+            tutorialModel = group;
+
+            fetch('Purl how to.obj').then(r => r.text()).then(text => {
+                if (token !== tutorialLoadToken) return;
+
+                // Parse all vertices then resolve splines via l-indices (same as showDualSplineAnimation)
+                const allVerts = [null];
+                const objects  = [];
+                let pendingName = null;
+                for (const raw of text.split('\n')) {
+                    const line = raw.trim();
+                    if (line.startsWith('v ')) {
+                        const p = line.split(/\s+/);
+                        allVerts.push(new THREE.Vector3(+p[1], +p[2], +p[3]));
+                    } else if (line.startsWith('o ')) {
+                        pendingName = line.slice(2).trim();
+                    } else if (line.startsWith('l ') && pendingName !== null) {
+                        objects.push({ name: pendingName, indices: line.slice(2).trim().split(/\s+/).map(Number) });
+                        pendingName = null;
+                    }
+                }
+                if (objects.length < 2) return;
+
+                const splines = objects.slice(0, 2).map(obj => obj.indices.map(i => allVerts[i].clone()));
+
+                const yMin0   = Math.min(...splines[0].map(p => p.y));
+                const yMin1   = Math.min(...splines[1].map(p => p.y));
+                const stitchH = Math.max(...splines[0].map(p => p.y)) - yMin0;
+
+                // Depth ramps linearly from 0 at the legs to zA at the arch peak.
+                // group.rotation.y = π maps local +Z → world −Z (away from viewer).
+                // Bottom arch local +Z → goes behind; top arch local −Z → comes forward.
+                // In the Y-overlap zone (top legs over bottom arch) top is in front → interlocking.
+                const zA = stitchH * 0.1;
+
+                const ptsBottom = splines[0].map(v => {
+                    const t = (v.y - yMin0) / stitchH;
+                    return new THREE.Vector3(v.x, v.y, zA * t);
+                });
+                const ptsTop = splines[1].map(v => {
+                    const t = (v.y - yMin1) / stitchH;
+                    return new THREE.Vector3(v.x, v.y, -zA * t);
+                });
+
+                const mat = () => new THREE.MeshLambertMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+
+                const staticGeo = new THREE.TubeGeometry(new BSplineCurve3(ptsBottom), 300, 14, 14, false);
+                group.add(new THREE.Mesh(staticGeo, mat()));
+
+                const animGeo  = new THREE.TubeGeometry(new BSplineCurve3(ptsTop), 300, 14, 14, false);
+                const animMesh = new THREE.Mesh(animGeo, mat());
+                // Use relative Y position from OBJ; fall back to half-stitch offset if splines share the same Y.
+                animMesh.position.y = Math.abs(yMin1 - yMin0) > stitchH * 0.05 ? (yMin1 - yMin0) : stitchH * 0.5;
+                group.add(animMesh);
+
+                group.rotation.y = Math.PI;
+
+                const box = new THREE.Box3().setFromObject(group);
+                group.userData._center = box.getCenter(new THREE.Vector3());
+                const sz = box.getSize(new THREE.Vector3());
+                group.userData._radius = Math.max(sz.x, sz.y, sz.z) * 1.3;
+
+                const totalIdx = animGeo.index.count;
+                let progress = 0;
+                tutorialClock.start();
+
+                function loop() {
+                    if (token !== tutorialLoadToken) return;
+                    tutorialAnimId = requestAnimationFrame(loop);
+                    const delta = tutorialClock.getDelta();
+                    progress += delta * 0.18;
+                    if (progress > 1.3) progress = 0;
+                    animGeo.setDrawRange(0, Math.floor(Math.min(progress, 1.0) * totalIdx));
+                    tutorialOrbitAngle += delta * 0.08;
+                    const c = group.userData._center;
+                    const r = group.userData._radius;
+                    tutorialCamera.position.set(
+                        c.x + Math.sin(tutorialOrbitAngle) * r,
+                        c.y + r * 0.2,
+                        c.z + Math.cos(tutorialOrbitAngle) * r
+                    );
+                    tutorialCamera.lookAt(c);
+                    tutorialRenderer.render(tutorialScene, tutorialCamera);
+                }
+                loop();
+            });
         }
 
         function showSweepAnimation(label, buttonEl) {
@@ -611,6 +1052,8 @@
         // --- THE 3D MATRIX ---
         const voxelMatrix = {};
         let isDirty = false;
+        const undoStack = [];
+        const redoStack = [];
 
         let bendFactor = 0;
         let gridMinX = -500, gridMaxX = 500;
@@ -627,6 +1070,21 @@
             gridDivisionsZ = GRID_WIDTH_Z / GRID_STEP;
         }
 
+        const _purl3dExtraRot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+
+        function _syncVariant(model) {
+            const v = model.userData._3dPurlGroup;
+            if (v) {
+                v.position.copy(model.position);
+                v.quaternion.copy(model.quaternion).multiply(_purl3dExtraRot);
+            }
+            const vc = model.userData._3dCastOnGroup;
+            if (vc) {
+                vc.position.copy(model.position);
+                vc.quaternion.copy(model.quaternion);
+            }
+        }
+
         function applyBendToModel(model) {
             const flat = model.userData.flatPos;
             if (!flat) return;
@@ -634,22 +1092,25 @@
                 model.position.copy(flat);
                 if (model.userData.baseQuat) model.quaternion.copy(model.userData.baseQuat);
                 if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(flat);
+                _syncVariant(model);
                 return;
             }
             const totalAngle = 2 * Math.PI * bendFactor;
             const centerX = (gridMinX + gridMaxX) / 2;
             const radius = GRID_WIDTH_X / totalAngle;
-            // X wraps downward around the grid centre column
+            // X wraps around a fixed axis at (0, -radius, z); each layer adds to the radius
             const angle = ((flat.x - centerX) / GRID_WIDTH_X) * totalAngle;
+            const r = radius + flat.y;
             model.position.set(
-                Math.sin(angle) * radius,
-                flat.y + (Math.cos(angle) - 1) * radius,
+                Math.sin(angle) * r,
+                -radius + Math.cos(angle) * r,
                 flat.z
             );
             if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(model.position);
             // Tilt the stitch to stay tangent to the cylinder surface (rotate around Z)
             const qBend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
             model.quaternion.copy(qBend.multiply((model.userData.baseQuat || new THREE.Quaternion()).clone()));
+            _syncVariant(model);
         }
 
         function updateAllBends() {
@@ -751,21 +1212,540 @@
             }
         }
 
+        function makeFresnelMat(color) {
+            const mat = new THREE.MeshStandardMaterial({ color: color.clone(), roughness: 0.75, metalness: 0.15 });
+            mat.onBeforeCompile = (shader) => {
+                shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
+                shader.uniforms.uFresnelPower = { value: 2.0 };
+                shader.uniforms.uFresnelStr   = { value: 0.6 };
+                shader.fragmentShader = `
+                    uniform vec3  uFresnelColor;
+                    uniform float uFresnelPower;
+                    uniform float uFresnelStr;
+                ` + shader.fragmentShader;
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <output_fragment>',
+                    `#include <output_fragment>
+                    float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
+                    gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
+                );
+            };
+            return mat;
+        }
+
         function setModelColor(model, color) {
             model.traverse(child => {
                 if (child.isMesh && child.material) child.material.color.set(color);
             });
+            if (model.userData._3dPurlGroup) {
+                model.userData._3dPurlGroup.traverse(child => {
+                    if (child.isMesh && child.material) child.material.color.set(color);
+                });
+            }
+            if (model.userData._3dCastOnGroup) {
+                model.userData._3dCastOnGroup.traverse(child => {
+                    if (child.isMesh && child.material) child.material.color.set(color);
+                });
+            }
             if (model.userData.abstractSprite) model.userData.abstractSprite.material.color.set(color);
+        }
+
+        const STRENGTH_PALETTE = [
+            new THREE.Color(0xff3300), //  0 – deep saturated orange-red (worst)
+            new THREE.Color(0xff7700), //  1 – vivid orange
+            new THREE.Color(0xffbb33), //  2 – amber
+            new THREE.Color(0xeeff77), //  3 – yellow-green
+            new THREE.Color(0xbbff88), //  4 – light green
+            new THREE.Color(0x66ff55), //  5 – bright green (best)
+        ];
+
+        function strengthPaletteColor(t) {
+            const n   = STRENGTH_PALETTE.length - 1;
+            const pos = Math.min(t * n, n - 0.0001);
+            const lo  = Math.floor(pos);
+            return STRENGTH_PALETTE[lo].clone().lerp(STRENGTH_PALETTE[lo + 1], pos - lo);
+        }
+
+        function getNeighbourCount(pos) {
+            const dirs = [
+                new THREE.Vector3( GRID_STEP, 0, 0),
+                new THREE.Vector3(-GRID_STEP, 0, 0),
+                new THREE.Vector3(0,  GRID_STEP, 0),
+                new THREE.Vector3(0, -GRID_STEP, 0),
+                new THREE.Vector3(0, 0,  GRID_STEP),
+                new THREE.Vector3(0, 0, -GRID_STEP),
+            ];
+            let count = 0;
+            dirs.forEach(d => {
+                if (voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x + d.x, pos.y + d.y, pos.z + d.z))]) count++;
+            });
+            return count;
+        }
+
+        function runStrengthTest() {
+            const MAX_NEIGHBOURS = 6;
+            const models = Object.values(voxelMatrix);
+
+            // First pass: raw neighbour counts
+            const rawScores = new Map();
+            models.forEach(model => {
+                const pos = model.userData.flatPos || model.position;
+                rawScores.set(model, getNeighbourCount(pos));
+            });
+
+            // Second pass: connectivity + purl quality + single-layer dominance
+            models.forEach(model => {
+                const pos = model.userData.flatPos || model.position;
+                const own = rawScores.get(model);
+
+                const dirs = [
+                    new THREE.Vector3( GRID_STEP, 0, 0), new THREE.Vector3(-GRID_STEP, 0, 0),
+                    new THREE.Vector3(0,  GRID_STEP, 0), new THREE.Vector3(0, -GRID_STEP, 0),
+                    new THREE.Vector3(0, 0,  GRID_STEP), new THREE.Vector3(0, 0, -GRID_STEP),
+                ];
+
+                let neighbourSum = 0, neighbourCount = 0;
+                let purlNeighbours = 0;
+                dirs.forEach(d => {
+                    const nb = voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x + d.x, pos.y + d.y, pos.z + d.z))];
+                    if (nb) {
+                        neighbourSum += rawScores.get(nb) || 0;
+                        neighbourCount++;
+                        if (nb.userData.stitchType === 'purl') purlNeighbours++;
+                    }
+                });
+
+                const avgNeighbourScore = neighbourCount > 0 ? neighbourSum / (neighbourCount * MAX_NEIGHBOURS) : 0;
+
+                // ── Purl quality multiplier ──────────────────────────────────────────
+                // 3D purl stitches are structurally the strongest stitch type.
+                // Score is multiplied by how "purl-rich" the local neighbourhood is.
+                // Self counts as one unit; each neighbour counts as one unit.
+                const selfIsPurl = model.userData.stitchType === 'purl';
+                const totalUnits = 1 + neighbourCount;
+                const purlUnits  = (selfIsPurl ? 1 : 0) + purlNeighbours;
+                const purlRatio  = totalUnits > 0 ? purlUnits / totalUnits : 0;
+                // Range: 0 purl → ×0.25 (very weak), all purl → ×1.0 (full strength)
+                const purlMultiplier = 0.25 + 0.75 * purlRatio;
+
+                // ── Connectivity base ────────────────────────────────────────────────
+                // 60% own neighbour count + 40% average neighbour quality
+                const base = (own / MAX_NEIGHBOURS) * 0.6 + avgNeighbourScore * 0.4;
+
+                // Apply purl quality
+                const afterPurl = base * purlMultiplier;
+
+                // ── Single-layer dominance ───────────────────────────────────────────
+                // A stitch with no vertical neighbours lives in a one-sheet layer:
+                // extremely flexible regardless of in-plane connectivity.
+                // Cap to the bottom 8% of the palette → deep saturated orange.
+                const hasAbove = !!voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y + GRID_STEP, pos.z))];
+                const hasBelow = !!voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y - GRID_STEP, pos.z))];
+                const singleLayer = !hasAbove && !hasBelow;
+
+                const combined = singleLayer ? Math.min(afterPurl, 0.08) : afterPurl;
+
+                const col = strengthPaletteColor(combined);
+                setModelColor(model, col);
+            });
+        }
+
+        function clearStrengthTest() {
+            Object.values(voxelMatrix).forEach(model => {
+                setModelColor(model, model.userData.originalColor || activeColor);
+            });
         }
 
         const RED = new THREE.Color(0xff2020);
 
+        // Returns true if a 3D purl below covers flatPos (i.e. flatPos is that purl's cover position).
+        function isCoveredBy3DPurl(flatPos) {
+            for (const [dx, dz] of [[-GRID_STEP,0],[GRID_STEP,0],[0,-GRID_STEP],[0,GRID_STEP]]) {
+                const below = voxelMatrix[getMatrixKey(new THREE.Vector3(flatPos.x + dx, flatPos.y - GRID_STEP, flatPos.z + dz))];
+                if (below && below.userData.is3DPurl &&
+                    getMatrixKey(purlCoverPos(below)) === getMatrixKey(flatPos)) return true;
+            }
+            return false;
+        }
+
         function updateStitchValidity(model) {
             if (!model || model.userData.stitchType === 'castOn') return;
+            if (model.userData.is3DPurl) { setModelColor(model, model.userData.originalColor); return; }
             const flat = model.userData.flatPos || model.position;
             const backPos = flat.clone().add(getBackOffset(model.userData.effectiveStep));
             const hasBack = voxelMatrix[getMatrixKey(backPos)] !== undefined;
-            setModelColor(model, hasBack ? model.userData.originalColor : RED);
+            const supported = hasBack || isCoveredBy3DPurl(flat);
+            setModelColor(model, supported ? model.userData.originalColor : RED);
+        }
+
+        function upgradePurl(model) {
+            if (model.userData.is3DPurl || !modelPrototypes['purl3d']) return;
+            // Hide original purl meshes and remove from raycasting
+            model.traverse(child => {
+                if (!child.isMesh) return;
+                const i = objects.indexOf(child);
+                if (i !== -1) objects.splice(i, 1);
+                meshToModel.delete(child);
+                child.visible = false;
+            });
+            // Create 3Dpurl as a standalone scene object at the same world transform.
+            // Keep the variant's own scale (normalised to 80/maxDim from loadStitch).
+            const variant = modelPrototypes['purl3d'].clone();
+            variant.position.copy(model.position);
+            variant.quaternion.copy(model.quaternion).multiply(_purl3dExtraRot);
+            variant.visible = !abstractMode;
+            variant.traverse(child => {
+                if (!child.isMesh) return;
+                if (!child.geometry.attributes.normal) child.geometry.computeVertexNormals();
+                child.material = makeFresnelMat(model.userData.originalColor);
+                objects.push(child);
+                meshToModel.set(child, model);
+            });
+            scene.add(variant);
+            model.userData._3dPurlGroup = variant;
+            model.userData.is3DPurl = true;
+            if (model.userData.abstractSprite && abstractTextures.purl3d) {
+                model.userData.abstractSprite.material.map = abstractTextures.purl3d;
+                model.userData.abstractSprite.material.needsUpdate = true;
+            }
+            updateStitchValidity(model);
+            const coverModelUp = voxelMatrix[getMatrixKey(purlCoverPos(model))];
+            updateStitchValidity(coverModelUp);
+            if (coverModelUp && coverModelUp.userData.supportCube) {
+                scene.remove(coverModelUp.userData.supportCube);
+                coverModelUp.userData.supportCube = null;
+            }
+        }
+
+        function downgradePurl(model) {
+            if (!model.userData.is3DPurl) return;
+            const coverKey = getMatrixKey(purlCoverPos(model));
+            const variant = model.userData._3dPurlGroup;
+            if (variant) {
+                variant.traverse(child => {
+                    if (!child.isMesh) return;
+                    const i = objects.indexOf(child);
+                    if (i !== -1) objects.splice(i, 1);
+                    meshToModel.delete(child);
+                });
+                scene.remove(variant);
+                model.userData._3dPurlGroup = null;
+            }
+            model.traverse(child => {
+                if (!child.isMesh) return;
+                child.visible = true;
+                objects.push(child);
+                meshToModel.set(child, model);
+            });
+            model.userData.is3DPurl = false;
+            if (model.userData.abstractSprite && abstractTextures.purl) {
+                model.userData.abstractSprite.material.map = abstractTextures.purl;
+                model.userData.abstractSprite.material.needsUpdate = true;
+            }
+            updateStitchValidity(model);
+            const coverModelDown = voxelMatrix[coverKey];
+            updateStitchValidity(coverModelDown);
+            if (coverModelDown && !coverModelDown.userData.supportCube && !isCoveredBy3DPurl(coverModelDown.userData.flatPos)) {
+                const layer = Math.round((coverModelDown.userData.flatPos.y - 25) / GRID_STEP);
+                const posUnder = coverModelDown.userData.flatPos.clone();
+                posUnder.y -= GRID_STEP;
+                if (layer > 0 && !voxelMatrix[getMatrixKey(posUnder)]) {
+                    const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                    const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                    supportCube.position.copy(posUnder);
+                    scene.add(supportCube);
+                    coverModelDown.userData.supportCube = supportCube;
+                }
+            }
+        }
+
+        // The "cover" position of a purl: one layer up (+Y) AND one step in the purl's own facing
+        // direction. A stitch there means its head/tail visually overlaps this purl from above.
+        function purlCoverPos(purlModel) {
+            const fp      = purlModel.userData.flatPos;
+            const step    = purlModel.userData.effectiveStep;
+            const forward = getBackOffset(step).clone().negate(); // facing direction = opposite of back
+            return new THREE.Vector3(
+                fp.x + forward.x,
+                fp.y + GRID_STEP,
+                fp.z + forward.z
+            );
+        }
+
+        // A purl upgrades to 3D when ANY stitch occupies the cover position above it.
+        function refreshPurlVariant(purlModel) {
+            const cover = purlCoverPos(purlModel);
+            const above = voxelMatrix[getMatrixKey(cover)];
+            above ? upgradePurl(purlModel) : downgradePurl(purlModel);
+        }
+
+        // When a stitch at flatPos is placed/removed, check all four horizontal neighbours
+        // one layer below — any purl whose cover position equals flatPos needs refreshing.
+        function refreshPurlVariantBelow(flatPos) {
+            for (const [dx, dz] of [[-GRID_STEP,0],[GRID_STEP,0],[0,-GRID_STEP],[0,GRID_STEP]]) {
+                const candidatePos = new THREE.Vector3(flatPos.x + dx, flatPos.y - GRID_STEP, flatPos.z + dz);
+                const model = voxelMatrix[getMatrixKey(candidatePos)];
+                if (model && model.userData.stitchType === 'purl') {
+                    if (getMatrixKey(purlCoverPos(model)) === getMatrixKey(flatPos)) {
+                        refreshPurlVariant(model);
+                    }
+                }
+            }
+        }
+
+        // ── Connector tool ──────────────────────────────────────────────────────
+        // Returns connection points + outward unit directions + availability flags.
+        // A side is blocked if a same-layer neighbour occupies that position.
+        function getStitchConnectionPoints(model) {
+            if (!model.userData.connectorSides) model.userData.connectorSides = new Set();
+            const fp       = model.userData.flatPos;
+            const step     = model.userData.effectiveStep;
+            const half     = GRID_STEP / 2;
+            const h        = fp.y + 12;
+            const backUnit = getBackOffset(step).clone().normalize();
+            const bd       = 10;
+            const bx = backUnit.x * bd, bz = backUnit.z * bd;
+            const facingZ = (step === 0 || step === 2);
+            const leftDir  = facingZ ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(0, 0,  1);
+            const rightDir = facingZ ? new THREE.Vector3( 1, 0, 0) : new THREE.Vector3(0, 0, -1);
+            const leftNeighbour  = getMatrixKey(new THREE.Vector3(fp.x + leftDir.x  * GRID_STEP, fp.y, fp.z + leftDir.z  * GRID_STEP));
+            const rightNeighbour = getMatrixKey(new THREE.Vector3(fp.x + rightDir.x * GRID_STEP, fp.y, fp.z + rightDir.z * GRID_STEP));
+            return {
+                left:  facingZ ? new THREE.Vector3(fp.x - half + bx, h, fp.z + bz)
+                               : new THREE.Vector3(fp.x + bx, h, fp.z + half + bz),
+                right: facingZ ? new THREE.Vector3(fp.x + half + bx, h, fp.z + bz)
+                               : new THREE.Vector3(fp.x + bx, h, fp.z - half + bz),
+                leftDir, rightDir,
+                leftFree:  !voxelMatrix[leftNeighbour]  && !model.userData.connectorSides.has('left'),
+                rightFree: !voxelMatrix[rightNeighbour] && !model.userData.connectorSides.has('right'),
+            };
+        }
+
+        function createConnector(modelA, modelB, forceSides = null) {
+            const ptsA = getStitchConnectionPoints(modelA);
+            const ptsB = getStitchConnectionPoints(modelB);
+            const fpA  = modelA.userData.flatPos;
+            const fpB  = modelB.userData.flatPos;
+
+            const sameRow          = modelA.userData.effectiveStep === modelB.userData.effectiveStep
+                                     && Math.abs(fpA.y - fpB.y) < 2;
+            const directlyAdjacent = sameRow && fpA.distanceTo(fpB) <= GRID_STEP * 1.1;
+
+            let ptA, dirA, ptB, dirB, sideA, sideB;
+
+            if (forceSides) {
+                // Restore from saved file — use the recorded sides directly.
+                sideA = forceSides.sideA; sideB = forceSides.sideB;
+                ptA  = ptsA[sideA];  dirA = ptsA[sideA + 'Dir'];
+                ptB  = ptsB[sideB];  dirB = ptsB[sideB + 'Dir'];
+            } else {
+                // Spatial side selection:
+                // For A pick the side whose direction most closely faces B.
+                // For B pick the side whose direction most closely faces A.
+                // Fall back to the other side only if the preferred side is occupied.
+                const vecAtoB = new THREE.Vector3().subVectors(fpB, fpA).normalize();
+                const vecBtoA = vecAtoB.clone().negate();
+
+                function pickSide(pts, facingVec) {
+                    const preferRight = facingVec.dot(pts.rightDir) >= facingVec.dot(pts.leftDir);
+                    const preferred   = preferRight ? 'right' : 'left';
+                    const fallback    = preferRight ? 'left'  : 'right';
+                    // Use preferred if free, or fallback if free, else keep preferred anyway
+                    if (pts[preferred + 'Free']) return preferred;
+                    if (pts[fallback  + 'Free']) return fallback;
+                    return preferred;
+                }
+
+                sideA = pickSide(ptsA, vecAtoB);
+                sideB = pickSide(ptsB, vecBtoA);
+                ptA   = ptsA[sideA];  dirA = ptsA[sideA + 'Dir'];
+                ptB   = ptsB[sideB];  dirB = ptsB[sideB + 'Dir'];
+            }
+
+            const dy   = Math.abs(ptB.y - ptA.y);
+            const dxz  = Math.sqrt((ptB.x - ptA.x) ** 2 + (ptB.z - ptA.z) ** 2);
+            const dist = ptA.distanceTo(ptB);
+            const sameLayer = dy < 2;
+
+            let curve;
+
+            if (directlyAdjacent) {
+                // Adjacent same-row stitches → planar circular arc in the facing direction.
+                const r   = dist / 2;
+                const k   = (4 / 3) * r;
+                const dx  = ptB.x - ptA.x, dz = ptB.z - ptA.z;
+                const perp = new THREE.Vector3(-dz, 0, dx).normalize();
+                const fwd  = getBackOffset(modelA.userData.effectiveStep).clone().normalize().negate();
+                const out  = perp.dot(fwd) >= 0 ? perp : perp.clone().negate();
+                const cp1  = new THREE.Vector3(ptA.x + out.x * k, ptA.y, ptA.z + out.z * k);
+                const cp2  = new THREE.Vector3(ptB.x + out.x * k, ptB.y, ptB.z + out.z * k);
+                curve = new THREE.CubicBezierCurve3(ptA, cp1, cp2, ptB);
+            } else if (dxz < 2 && dy > 2) {
+                // Same column, different layers → straight line.
+                curve = new THREE.LineCurve3(ptA, ptB);
+            } else if (sameLayer) {
+                // Same layer, non-adjacent → planar arch (keep Y constant).
+                const archAmt = Math.max(dist * 0.4, GRID_STEP * 0.3);
+                const cp1 = new THREE.Vector3(ptA.x + dirA.x * archAmt, ptA.y, ptA.z + dirA.z * archAmt);
+                const cp2 = new THREE.Vector3(ptB.x + dirB.x * archAmt, ptB.y, ptB.z + dirB.z * archAmt);
+                curve = new THREE.CubicBezierCurve3(ptA, cp1, cp2, ptB);
+            } else {
+                // Different layers → arch outward and upward.
+                const archAmt = Math.max(dist * 0.4, GRID_STEP * 0.3);
+                const archH   = Math.max(dist * 0.25, GRID_STEP * 0.15);
+                const cp1 = new THREE.Vector3(ptA.x + dirA.x * archAmt, ptA.y + archH, ptA.z + dirA.z * archAmt);
+                const cp2 = new THREE.Vector3(ptB.x + dirB.x * archAmt, ptB.y + archH, ptB.z + dirB.z * archAmt);
+                curve = new THREE.CubicBezierCurve3(ptA, cp1, cp2, ptB);
+            }
+
+            const geo  = new THREE.TubeGeometry(curve, 24, 5, 8, false);
+            const mat  = makeFresnelMat(modelA.userData.originalColor.clone());
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.geometry.computeVertexNormals();
+            mesh.userData.isConnector    = true;
+            mesh.userData.connectorStart = modelA;
+            mesh.userData.connectorEnd   = modelB;
+            mesh.userData.connectorSideA = sideA;
+            mesh.userData.connectorSideB = sideB;
+            mesh.visible = !abstractMode;
+            // Mark the used sides on each stitch model.
+            if (!modelA.userData.connectorSides) modelA.userData.connectorSides = new Set();
+            if (!modelB.userData.connectorSides) modelB.userData.connectorSides = new Set();
+            modelA.userData.connectorSides.add(sideA);
+            modelB.userData.connectorSides.add(sideB);
+            scene.add(mesh);
+            objects.push(mesh);
+            meshToModel.set(mesh, mesh);
+            connectors.push(mesh);
+            undoStack.push({ type: 'connector', action: 'place', mesh });
+            redoStack.length = 0;
+            return mesh;
+        }
+
+        function removeConnector(mesh, skipHistory = false) {
+            // Free the used sides on both endpoint stitches.
+            const mA = mesh.userData.connectorStart;
+            const mB = mesh.userData.connectorEnd;
+            if (mA?.userData.connectorSides) mA.userData.connectorSides.delete(mesh.userData.connectorSideA);
+            if (mB?.userData.connectorSides) mB.userData.connectorSides.delete(mesh.userData.connectorSideB);
+            const ci = connectors.indexOf(mesh);
+            if (ci !== -1) connectors.splice(ci, 1);
+            const oi = objects.indexOf(mesh);
+            if (oi !== -1) objects.splice(oi, 1);
+            meshToModel.delete(mesh);
+            scene.remove(mesh);
+            if (!skipHistory) {
+                undoStack.push({ type: 'connector', action: 'delete', mesh });
+                redoStack.length = 0;
+            }
+        }
+
+        function _reattachConnector(mesh) {
+            // Re-mark the sides that were in use before the undo.
+            const mA = mesh.userData.connectorStart;
+            const mB = mesh.userData.connectorEnd;
+            if (mA) { if (!mA.userData.connectorSides) mA.userData.connectorSides = new Set(); mA.userData.connectorSides.add(mesh.userData.connectorSideA); }
+            if (mB) { if (!mB.userData.connectorSides) mB.userData.connectorSides = new Set(); mB.userData.connectorSides.add(mesh.userData.connectorSideB); }
+            scene.add(mesh);
+            objects.push(mesh);
+            meshToModel.set(mesh, mesh);
+            connectors.push(mesh);
+        }
+
+        function cancelConnectorSelection() {
+            if (connectorStartModel) {
+                setModelColor(connectorStartModel, connectorStartModel.userData.originalColor);
+                connectorStartModel = null;
+            }
+            document.getElementById('connectorStatus').textContent = 'Select start stitch';
+        }
+
+        function exitConnectorMode() {
+            clearConnectorHover();
+            cancelConnectorSelection();
+            connectorMode = false;
+            rollOverMesh.visible = true;
+            renderer.domElement.style.cursor = 'default';
+            document.getElementById('connectorStatus').style.display = 'none';
+        }
+
+        function sweepPurlUpgrades() {
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.stitchType === 'purl') refreshPurlVariant(model);
+            });
+        }
+
+        // ── 3D Cast On upgrade system ──────────────────────────────────────────────
+        // A castOn upgrades to its 3D variant when any stitch is placed directly
+        // above it (+Y), indicating the foundation loops are being drawn up.
+
+        function upgradeCastOn(model) {
+            if (model.userData.is3DCastOn || !modelPrototypes['castOn3d']) return;
+            // Hide flat castOn meshes from raycasting / rendering
+            model.traverse(child => {
+                if (!child.isMesh) return;
+                const i = objects.indexOf(child);
+                if (i !== -1) objects.splice(i, 1);
+                meshToModel.delete(child);
+                child.visible = false;
+            });
+            const variant = modelPrototypes['castOn3d'].clone();
+            variant.position.copy(model.position);
+            variant.quaternion.copy(model.quaternion);
+            variant.visible = !abstractMode;
+            variant.traverse(child => {
+                if (!child.isMesh) return;
+                if (!child.geometry.attributes.normal) child.geometry.computeVertexNormals();
+                child.material = makeFresnelMat(model.userData.originalColor.clone());
+                objects.push(child);
+                meshToModel.set(child, model);
+            });
+            scene.add(variant);
+            model.userData._3dCastOnGroup = variant;
+            model.userData.is3DCastOn = true;
+        }
+
+        function downgradeCastOn(model) {
+            if (!model.userData.is3DCastOn) return;
+            const variant = model.userData._3dCastOnGroup;
+            if (variant) {
+                variant.traverse(child => {
+                    if (!child.isMesh) return;
+                    const i = objects.indexOf(child);
+                    if (i !== -1) objects.splice(i, 1);
+                    meshToModel.delete(child);
+                });
+                scene.remove(variant);
+                model.userData._3dCastOnGroup = null;
+            }
+            model.traverse(child => {
+                if (!child.isMesh) return;
+                child.visible = true;
+                objects.push(child);
+                meshToModel.set(child, model);
+            });
+            model.userData.is3DCastOn = false;
+        }
+
+        // Re-evaluate whether a castOn should show its 3D variant.
+        function refreshCastOnVariant(model) {
+            const pos   = model.userData.flatPos || model.position;
+            const above = voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y + GRID_STEP, pos.z))];
+            above ? upgradeCastOn(model) : downgradeCastOn(model);
+        }
+
+        // When a stitch at flatPos is placed/removed, check if the castOn directly
+        // below it needs to flip between flat and 3D.
+        function refreshCastOnVariantBelow(flatPos) {
+            const below = voxelMatrix[getMatrixKey(new THREE.Vector3(flatPos.x, flatPos.y - GRID_STEP, flatPos.z))];
+            if (below && below.userData.stitchType === 'castOn') refreshCastOnVariant(below);
+        }
+
+        function sweepCastOnUpgrades() {
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.stitchType === 'castOn') refreshCastOnVariant(model);
+            });
         }
 
         function revalidateNeighbors(flatPos) {
@@ -779,7 +1759,7 @@
             }
         }
 
-        function loadStitch(key, filename, rotationY = Math.PI / 2, rotationX = 0, offsetZ = 0, offsetX = 0, mirrorX = false) {
+        function loadStitch(key, filename, rotationY = Math.PI / 2, rotationX = 0, offsetZ = 0, offsetX = 0, mirrorX = false, onLoaded = null) {
             const loader = new GLTFLoader();
             loader.load(filename, function (gltf) {
                 const proto = gltf.scene;
@@ -795,14 +1775,17 @@
                 modelPrototypes[key] = proto;
                 const btn = document.querySelector(`.stitch-btn[data-stitch="${key}"]`);
                 if (btn) btn.classList.remove('loading');
+                if (onLoaded) onLoaded();
             }, undefined, (error) => {
                 console.error(`Failed to load ${filename}`, error);
             });
         }
 
-        loadStitch('knit',   'Knit_A.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
-        loadStitch('castOn', 'Cast ON.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
-        loadStitch('purl',   'Purl_A.glb',  Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('knit',     'Knit_A.glb',    Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('castOn',   'Cast ON.glb',   Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('purl',     'Purl_A.glb',    Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('purl3d',   '3Dpurl.glb',    Math.PI / 2 + Math.PI, 0, 0, 0, true, sweepPurlUpgrades);
+        loadStitch('castOn3d', '3DCastOn.glb',  Math.PI / 2 + Math.PI, 0, 0, 0, true, sweepCastOnUpgrades);
         loadAbstractTextures();
         initTutorialRenderer();
 
@@ -856,7 +1839,18 @@
 
             window.addEventListener( 'pointermove', onPointerMove );
             window.addEventListener( 'pointerdown', onPointerDown );
-            window.addEventListener( 'keydown', (e) => { if (e.keyCode === 16) isShiftDown = true; } );
+            window.addEventListener( 'keydown', (e) => {
+                if (e.keyCode === 16) isShiftDown = true;
+                if (e.key === 'Escape' && connectorMode) {
+                    exitConnectorMode();
+                    const prevBtn = document.querySelector(`.stitch-btn[data-stitch="${activeStitch}"]`);
+                    if (prevBtn) prevBtn.classList.add('active');
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    e.shiftKey ? redoAction() : undoAction();
+                }
+            });
             window.addEventListener( 'keyup', (e) => { if (e.keyCode === 16) isShiftDown = false; } );
             window.addEventListener( 'pointerup', (e) => { if (e.button === 0) { isLeftDown = false; lastPlacedKey = null; } } );
             window.addEventListener( 'resize', onWindowResize );
@@ -879,18 +1873,43 @@
             document.getElementById('downLayer').onclick = () => { if(currentLayer > 0) currentLayer--; updatePlane(); };
             document.getElementById('resetLayer').onclick = () => { currentLayer = 0; updatePlane(); };
             document.getElementById('topDownBtn').onclick = () => setTopDownView();
+            const helpOverlay = document.getElementById('helpOverlay');
+            document.getElementById('helpBtn').onclick    = () => helpOverlay.classList.add('open');
+            document.getElementById('closeHelp').onclick  = () => helpOverlay.classList.remove('open');
+            helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
+            document.getElementById('strengthBtn').onclick = () => {
+                strengthTestActive = !strengthTestActive;
+                document.getElementById('strengthBtn').classList.toggle('active', strengthTestActive);
+                strengthTestActive ? runStrengthTest() : clearStrengthTest();
+            };
 
             function updatePlane() {
                 layerText.innerText = currentLayer;
                 plane.position.y = currentLayer * GRID_STEP;
                 if (window._updateCompass) window._updateCompass();
                 if (bendFactor > 0) updateBentGrid();
+                if (sectionEnabled) updateSectionUI();
             }
 
             const stitchLabels = { knit: 'Knit', castOn: 'Cast On', purl: 'Purl' };
             document.querySelectorAll('.stitch-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (btn.classList.contains('loading')) return;
+                    if (btn.dataset.stitch === 'connector') {
+                        connectorMode = !connectorMode;
+                        document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
+                        if (connectorMode) {
+                            btn.classList.add('active');
+                            document.getElementById('connectorStatus').textContent = 'Select start stitch';
+                            document.getElementById('connectorStatus').style.display = 'block';
+                        } else {
+                            exitConnectorMode();
+                            const prevBtn = document.querySelector(`.stitch-btn[data-stitch="${activeStitch}"]`);
+                            if (prevBtn) prevBtn.classList.add('active');
+                        }
+                        return;
+                    }
+                    if (connectorMode) exitConnectorMode();
                     activeStitch = btn.dataset.stitch;
                     document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
@@ -900,6 +1919,8 @@
                     const label = stitchLabels[btn.dataset.stitch] || btn.dataset.stitch;
                     if (!glb) return;
                     if (glb === '__sweep__') showSweepAnimation(label, btn);
+                    else if (glb === '__knit__') showDualSplineAnimation('Howto knit.obj', label, btn);
+                    else if (glb === '__purl__') showPurlAnimation(label, btn);
                     else showTutorial(glb, label, btn);
                 });
                 btn.addEventListener('mouseleave', hideTutorial);
@@ -976,11 +1997,18 @@
                     color: '#' + model.userData.originalColor.getHexString(),
                     effectiveStep: model.userData.effectiveStep
                 }));
+                const savedConnectors = connectors.map(mesh => ({
+                    startKey: mesh.userData.connectorStart.userData.matrixKey,
+                    endKey:   mesh.userData.connectorEnd.userData.matrixKey,
+                    sideA:    mesh.userData.connectorSideA,
+                    sideB:    mesh.userData.connectorSideB,
+                }));
                 const data = {
-                    version: 1,
+                    version: 3,
                     gridMinX, gridMaxX, gridMinZ, gridMaxZ,
                     currentLayer, bendFactor,
-                    stitches
+                    stitches,
+                    connectors: savedConnectors
                 };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -1006,9 +2034,14 @@
                     try { data = JSON.parse(ev.target.result); }
                     catch { alert('Invalid file.'); return; }
 
+                    // Clear existing connectors
+                    connectors.slice().forEach(m => removeConnector(m, true));
+
                     // Clear existing stitches
                     Object.values(voxelMatrix).forEach(model => {
                         if (model.userData.supportCube) scene.remove(model.userData.supportCube);
+                        if (model.userData.is3DPurl)   downgradePurl(model);
+                        if (model.userData.is3DCastOn) downgradeCastOn(model);
                         if (model.userData.abstractSprite) {
                             scene.remove(model.userData.abstractSprite);
                             model.userData.abstractSprite.material.dispose();
@@ -1055,6 +2088,19 @@
                         model.userData.abstractSprite = sprite;
                         applyBendToModel(model);
                     });
+
+                    // Restore 3D upgrades
+                    sweepPurlUpgrades();
+                    sweepCastOnUpgrades();
+
+                    // Restore connectors (v3 preserves exact sides; v2 re-computes them)
+                    (data.connectors || []).forEach(c => {
+                        const mA = voxelMatrix[c.startKey];
+                        const mB = voxelMatrix[c.endKey];
+                        if (mA && mB) createConnector(mA, mB,
+                            (c.sideA && c.sideB) ? { sideA: c.sideA, sideB: c.sideB } : null);
+                    });
+
                     isDirty = true;
                 };
                 reader.readAsText(file);
@@ -1110,7 +2156,7 @@
             // Stability check — spawn red cube if unsupported
             const posUnder = model.position.clone();
             posUnder.y -= GRID_STEP;
-            const isSupported = (currentLayer === 0) || (voxelMatrix[getMatrixKey(posUnder)] !== undefined);
+            const isSupported = (currentLayer === 0) || (voxelMatrix[getMatrixKey(posUnder)] !== undefined) || isCoveredBy3DPurl(model.position);
             if (!isSupported) {
                 const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
                 const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
@@ -1121,7 +2167,8 @@
             }
 
             model.userData.stitchType = activeStitch;
-            model.userData.originalColor = activeColor.clone();
+            const placedColor = getLayerColor(activeColor, currentLayer);
+            model.userData.originalColor = placedColor;
             model.userData.effectiveStep = effectiveStep;
             model.userData.flatPos = model.position.clone();
             model.userData.baseRotY = model.rotation.y;
@@ -1130,40 +2177,19 @@
 
             voxelMatrix[currentKey] = model;
             isDirty = true;
+            undoStack.push({ type: 'place', model, key: currentKey });
+            redoStack.length = 0;
             scene.add(model);
             model.visible = !abstractMode;
-            const sprite = makeAbstractSprite(activeStitch, activeColor);
+            const sprite = makeAbstractSprite(activeStitch, placedColor);
             sprite.position.copy(model.position);
             sprite.visible = abstractMode;
             scene.add(sprite);
             model.userData.abstractSprite = sprite;
             model.traverse((child) => {
                 if (child.isMesh) {
-                    if (!child.geometry.attributes.normal) {
-                        child.geometry.computeVertexNormals();
-                    }
-                    const mat = new THREE.MeshStandardMaterial({
-                        color:     activeColor.clone(),
-                        roughness: 0.75,
-                        metalness: 0.15,
-                    });
-                    mat.onBeforeCompile = (shader) => {
-                        shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
-                        shader.uniforms.uFresnelPower = { value: 2.0 };
-                        shader.uniforms.uFresnelStr   = { value: 0.6 };
-                        shader.fragmentShader = `
-                            uniform vec3  uFresnelColor;
-                            uniform float uFresnelPower;
-                            uniform float uFresnelStr;
-                        ` + shader.fragmentShader;
-                        shader.fragmentShader = shader.fragmentShader.replace(
-                            '#include <output_fragment>',
-                            `#include <output_fragment>
-                            float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
-                            gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
-                        );
-                    };
-                    child.material = mat;
+                    if (!child.geometry.attributes.normal) child.geometry.computeVertexNormals();
+                    child.material = makeFresnelMat(placedColor);
                     objects.push(child);
                     meshToModel.set(child, model);
                 }
@@ -1172,6 +2198,10 @@
             updateStitchValidity(model);
             revalidateNeighbors(model.userData.flatPos);
             applyBendToModel(model);
+            refreshPurlVariantBelow(model.userData.flatPos);
+            refreshCastOnVariantBelow(model.userData.flatPos);
+            if (model.userData.stitchType === 'castOn') refreshCastOnVariant(model);
+            if (sectionEnabled) updateSectionUI();
         }
 
         function deleteVoxel(intersect) {
@@ -1179,6 +2209,8 @@
             if (!rootModel) return;
 
             const deletedPos = rootModel.userData.flatPos.clone();
+            undoStack.push({ type: 'delete', model: rootModel, key: rootModel.userData.matrixKey });
+            redoStack.length = 0;
             delete voxelMatrix[rootModel.userData.matrixKey];
 
             if (rootModel.userData.supportCube) {
@@ -1188,7 +2220,7 @@
             const posAbove = deletedPos.clone();
             posAbove.y += GRID_STEP;
             const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
-            if (modelAbove && !modelAbove.userData.supportCube) {
+            if (modelAbove && !modelAbove.userData.supportCube && !isCoveredBy3DPurl(posAbove)) {
                 const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
                 const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
                 const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
@@ -1197,6 +2229,8 @@
                 modelAbove.userData.supportCube = supportCube;
             }
 
+            if (rootModel.userData.is3DPurl)   downgradePurl(rootModel);
+            if (rootModel.userData.is3DCastOn) downgradeCastOn(rootModel);
             rootModel.traverse((child) => {
                 if (child.isMesh) {
                     objects.splice(objects.indexOf(child), 1);
@@ -1205,24 +2239,178 @@
             });
             if (rootModel.userData.abstractSprite) {
                 scene.remove(rootModel.userData.abstractSprite);
-                rootModel.userData.abstractSprite.material.dispose();
+                // keep sprite reference alive for redo
             }
             scene.remove(rootModel);
             isDirty = true;
             revalidateNeighbors(deletedPos);
+            refreshPurlVariantBelow(deletedPos);
+            refreshCastOnVariantBelow(deletedPos);
+        }
+
+        function _attachModel(model) {
+            // Remove support cube from model above (we're filling the cell below it)
+            const posAbove = model.userData.flatPos.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && modelAbove.userData.supportCube) {
+                scene.remove(modelAbove.userData.supportCube);
+                modelAbove.userData.supportCube = null;
+            }
+
+            // Recalculate support cube for this model
+            const layer = Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
+            const posUnder = model.userData.flatPos.clone();
+            posUnder.y -= GRID_STEP;
+            const isSupported = (layer === 0) || (voxelMatrix[getMatrixKey(posUnder)] !== undefined) || isCoveredBy3DPurl(model.userData.flatPos);
+            if (model.userData.supportCube) {
+                scene.remove(model.userData.supportCube);
+                model.userData.supportCube = null;
+            }
+            if (!isSupported) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(posUnder);
+                scene.add(supportCube);
+                model.userData.supportCube = supportCube;
+            }
+
+            voxelMatrix[model.userData.matrixKey] = model;
+            scene.add(model);
+            model.visible = !abstractMode;
+            if (model.userData.abstractSprite) {
+                scene.add(model.userData.abstractSprite);
+                model.userData.abstractSprite.visible = abstractMode;
+            }
+            model.traverse(child => {
+                if (child.isMesh) { objects.push(child); meshToModel.set(child, model); }
+            });
+            updateStitchValidity(model);
+            revalidateNeighbors(model.userData.flatPos);
+            applyBendToModel(model);
+            refreshPurlVariantBelow(model.userData.flatPos);
+            refreshCastOnVariantBelow(model.userData.flatPos);
+            // If this model should upgrade to its 3D variant, check now
+            if (model.userData.stitchType === 'purl')   refreshPurlVariant(model);
+            if (model.userData.stitchType === 'castOn') refreshCastOnVariant(model);
+            if (sectionEnabled) applySectionView();
+            isDirty = true;
+        }
+
+        function _detachModel(model) {
+            const deletedPos = model.userData.flatPos.clone();
+            delete voxelMatrix[model.userData.matrixKey];
+
+            if (model.userData.supportCube) {
+                scene.remove(model.userData.supportCube);
+                model.userData.supportCube = null;
+            }
+
+            const posAbove = deletedPos.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && !modelAbove.userData.supportCube && !isCoveredBy3DPurl(posAbove)) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(deletedPos);
+                scene.add(supportCube);
+                modelAbove.userData.supportCube = supportCube;
+            }
+
+            if (model.userData.is3DPurl)   downgradePurl(model);
+            if (model.userData.is3DCastOn) downgradeCastOn(model);
+            model.traverse(child => {
+                if (child.isMesh) {
+                    const idx = objects.indexOf(child);
+                    if (idx !== -1) objects.splice(idx, 1);
+                    meshToModel.delete(child);
+                }
+            });
+            if (model.userData.abstractSprite) scene.remove(model.userData.abstractSprite);
+            scene.remove(model);
+            revalidateNeighbors(deletedPos);
+            refreshPurlVariantBelow(deletedPos);
+            refreshCastOnVariantBelow(deletedPos);
+            if (sectionEnabled) applySectionView();
+            isDirty = true;
+        }
+
+        function undoAction() {
+            const entry = undoStack.pop();
+            if (!entry) return;
+            if (entry.type === 'connector') {
+                if (entry.action === 'place') removeConnector(entry.mesh, true);
+                else                          _reattachConnector(entry.mesh);
+                redoStack.push(entry);
+            } else {
+                if (entry.type === 'place') _detachModel(entry.model);
+                else                        _attachModel(entry.model);
+                redoStack.push(entry);
+            }
+        }
+
+        function redoAction() {
+            const entry = redoStack.pop();
+            if (!entry) return;
+            if (entry.type === 'connector') {
+                if (entry.action === 'place') _reattachConnector(entry.mesh);
+                else                          removeConnector(entry.mesh, true);
+                undoStack.push(entry);
+            } else {
+                if (entry.type === 'place') _attachModel(entry.model);
+                else                        _detachModel(entry.model);
+                undoStack.push(entry);
+            }
+        }
+
+        function clearConnectorHover() {
+            if (connectorHoverModel) {
+                const col = connectorHoverModel === connectorStartModel
+                    ? new THREE.Color(0x6699ff)
+                    : connectorHoverModel.userData.originalColor;
+                setModelColor(connectorHoverModel, col);
+                connectorHoverModel = null;
+            }
         }
 
         function onPointerMove( event ) {
             pointer.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
             raycaster.setFromCamera( pointer, camera );
             const intersects = raycaster.intersectObjects( objects, false );
+
+            if (connectorMode) {
+                rollOverMesh.visible = false;
+
+                // Find hovered stitch
+                let hovered = null;
+                for (const inter of intersects) {
+                    const m = meshToModel.get(inter.object);
+                    if (m && m.userData.matrixKey) { hovered = m; break; }
+                }
+
+                if (hovered !== connectorHoverModel) {
+                    clearConnectorHover();
+                    if (hovered && hovered !== connectorStartModel) {
+                        setModelColor(hovered, new THREE.Color(0xaaccff));
+                        connectorHoverModel = hovered;
+                    }
+                }
+                renderer.domElement.style.cursor = hovered ? 'pointer' : 'default';
+                return;
+            }
+
+            rollOverMesh.visible = true;
+            renderer.domElement.style.cursor = 'default';
+
             if ( intersects.length > 0 ) {
                 const intersect = intersects[ 0 ];
                 rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
                 rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
                 rollOverMesh.position.y = (currentLayer * GRID_STEP) + 25;
 
-                if (isLeftDown) {
+                if (isLeftDown && !connectorMode) {
                     isShiftDown ? deleteVoxel(intersect) : placeVoxel(intersect);
                 }
             }
@@ -1238,7 +2426,36 @@
             raycaster.setFromCamera(pointer, camera);
             const intersects = raycaster.intersectObjects(objects, false);
 
-            if (intersects.length > 0) {
+            if (connectorMode) {
+                // Always pick the frontmost hit — use ray distance for all types.
+                let hit = null;
+                const seen = new Set();
+                for (const inter of intersects) {
+                    const m = meshToModel.get(inter.object);
+                    if (!m || (!m.userData.matrixKey && !m.userData.isConnector)) continue;
+                    if (seen.has(m)) continue;
+                    seen.add(m);
+                    hit = m;   // intersects are sorted nearest-first — take the first valid one
+                    break;
+                }
+                if (hit) {
+                    if (hit.userData.isConnector) {
+                        removeConnector(hit);
+                    } else {
+                        if (!connectorStartModel) {
+                            connectorStartModel = hit;
+                            setModelColor(hit, new THREE.Color(0x6699ff));
+                            document.getElementById('connectorStatus').textContent = 'Select end stitch';
+                        } else if (hit !== connectorStartModel) {
+                            createConnector(connectorStartModel, hit);
+                            cancelConnectorSelection();
+                        }
+                    }
+                }
+                return;
+            }
+
+            if (intersects.length > 0 && !connectorMode) {
                 isShiftDown ? deleteVoxel(intersects[0]) : placeVoxel(intersects[0]);
             }
         }
@@ -1278,12 +2495,138 @@
             updateGridEdgeBtns();
         }
 
+        // ── Section View ─────────────────────────────────────────────────────
+        let sectionEnabled = false;
+        let sectionTopFrac = 1.0;
+        let sectionBotFrac = 0.0;
+
+        function getLayerColor(baseColor, layer) {
+            const hsl = { h: 0, s: 0, l: 0 };
+            baseColor.getHSL(hsl);
+            // Rotate hue 30° per layer, then remap into safe range 20°–340° to avoid red (error colour)
+            const rawH = (hsl.h + layer * (30 / 360)) % 1;
+            const safeStart = 20 / 360;
+            const safeSpan  = 320 / 360;
+            const h = safeStart + rawH * safeSpan;
+            return new THREE.Color().setHSL(h, Math.max(hsl.s, 0.35), Math.max(hsl.l, 0.4));
+        }
+
+        function getSectionLayerBounds() {
+            const models = Object.values(voxelMatrix);
+            const maxPlaced = models.length > 0
+                ? Math.max(...models.map(m => Math.round((m.userData.flatPos.y - 25) / GRID_STEP)))
+                : 0;
+            return { minL: 0, maxL: Math.max(maxPlaced, 10) };
+        }
+
+        function updateSectionUI() {
+            const wrap = document.getElementById('section-slider-wrap');
+            const h = wrap.clientHeight;
+            const topPx = (1 - sectionTopFrac) * h;
+            const botPx = (1 - sectionBotFrac) * h;
+            document.getElementById('section-handle-top').style.top = topPx + 'px';
+            document.getElementById('section-handle-bot').style.top = botPx + 'px';
+            document.getElementById('section-range-fill').style.top    = topPx + 'px';
+            document.getElementById('section-range-fill').style.height = (botPx - topPx) + 'px';
+            const { minL, maxL } = getSectionLayerBounds();
+            const range = maxL - minL;
+            document.getElementById('section-label-top').textContent = Math.round(minL + sectionTopFrac * range);
+            document.getElementById('section-label-bot').textContent = Math.round(minL + sectionBotFrac * range);
+        }
+
+        function applySectionView() {
+            const models = Object.values(voxelMatrix);
+            if (models.length === 0) return;
+            const { minL, maxL } = getSectionLayerBounds();
+            const range = Math.max(maxL - minL, 1);
+            const topLayer = minL + sectionTopFrac * range;
+            const botLayer = minL + sectionBotFrac * range;
+
+            models.forEach(model => {
+                const layer = Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
+                const inRange = !sectionEnabled || (layer >= botLayer && layer < topLayer);
+                model.traverse(c => {
+                    if (!c.isMesh || !c.material) return;
+                    c.material.color.copy(model.userData.originalColor);
+                    if (inRange) {
+                        c.material.transparent = false;
+                        c.material.opacity = 1;
+                    } else {
+                        c.material.transparent = true;
+                        c.material.opacity = 0.12;
+                    }
+                    c.material.needsUpdate = true;
+                });
+            });
+        }
+
+        function initSectionSlider() {
+            document.getElementById('sectionBtn').addEventListener('click', () => {
+                sectionEnabled = !sectionEnabled;
+                document.getElementById('section-panel').style.display = sectionEnabled ? 'flex' : 'none';
+                document.getElementById('sectionBtn').textContent = sectionEnabled ? 'Section On' : 'Section View';
+                if (sectionEnabled) updateSectionUI();
+                applySectionView();
+            });
+
+            ['top', 'bot'].forEach(which => {
+                const handle = document.getElementById('section-handle-' + which);
+                handle.addEventListener('pointerdown', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handle.setPointerCapture(e.pointerId);
+                    handle.classList.add('dragging');
+                    const wrap = document.getElementById('section-slider-wrap');
+
+                    function onMove(e) {
+                        const { minL, maxL } = getSectionLayerBounds();
+                        const numSteps = Math.max(maxL - minL, 1);
+                        const rect = wrap.getBoundingClientRect();
+                        let frac = 1 - (e.clientY - rect.top) / rect.height;
+                        frac = Math.max(0, Math.min(1, frac));
+                        // snap to layer grid
+                        frac = Math.round(frac * numSteps) / numSteps;
+                        if (which === 'top') {
+                            sectionTopFrac = Math.max(sectionBotFrac + 1 / numSteps, frac);
+                        } else {
+                            sectionBotFrac = Math.min(sectionTopFrac - 1 / numSteps, frac);
+                            const newLayer = Math.round(minL + sectionBotFrac * numSteps);
+                            if (newLayer !== currentLayer) {
+                                currentLayer = newLayer;
+                                document.getElementById('layerNum').innerText = currentLayer;
+                                plane.position.y = currentLayer * GRID_STEP;
+                                if (bendFactor > 0) updateBentGrid();
+                            }
+                        }
+                        updateSectionUI();
+                        applySectionView();
+                    }
+                    function onUp() {
+                        handle.classList.remove('dragging');
+                        handle.removeEventListener('pointermove', onMove);
+                        handle.removeEventListener('pointerup', onUp);
+                    }
+                    handle.addEventListener('pointermove', onMove);
+                    handle.addEventListener('pointerup', onUp);
+                });
+            });
+        }
+        initSectionSlider();
+
         window.addEventListener('beforeunload', (e) => {
             if (!isDirty) return;
             e.preventDefault();
             e.returnValue = '';
         });
     </script>
+
+    <div id="section-panel">
+        <div id="section-slider-wrap">
+            <div id="section-range-fill"></div>
+            <div id="section-handle-top" class="section-handle"><span class="section-label" id="section-label-top">0</span></div>
+            <div id="section-handle-bot" class="section-handle"><span class="section-label" id="section-label-bot">0</span></div>
+        </div>
+    </div>
 
     <div id="stitch-tutorial-popup">
         <canvas id="tutorial-canvas" width="220" height="200"></canvas>

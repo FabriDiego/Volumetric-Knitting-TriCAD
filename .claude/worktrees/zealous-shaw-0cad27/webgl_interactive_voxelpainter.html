@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>three.js webgl - DigiKnitting Voxel Pro</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { background-color: #f0f0f0; color: #444; margin: 0; overflow: hidden; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; pointer-events: none; }
+        #controls {
+            position: absolute; top: 50px; left: 20px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 8px; z-index: 100;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        button { padding: 8px 12px; cursor: pointer; font-weight: bold; border: 1px solid #ccc; background: #fff; }
+        button:hover { background: #eee; }
+        #topDownBtn { background: #08f; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 10px;}
+        #exportBtn { background: #2a2; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; }
+        .layer-display { font-size: 1.1em; text-align: center; font-weight: bold; color: #08f; }
+
+        #stitch-picker {
+            position: absolute; top: 50px; right: 20px;
+            background: rgba(255, 255, 255, 0.9); padding: 15px;
+            border-radius: 8px; z-index: 100;
+            display: flex; flex-direction: column; gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 130px;
+        }
+        #stitch-picker h3 {
+            margin: 0 0 4px 0; font-size: 0.85em;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: #888; text-align: center;
+        }
+        .stitch-btn {
+            padding: 10px 12px; cursor: pointer; font-weight: bold;
+            border: 2px solid #ccc; background: #fff;
+            border-radius: 6px; text-align: center;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .stitch-btn:hover { background: #eef; border-color: #aaf; }
+        .stitch-btn.active {
+            background: #08f; color: #fff;
+            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
+        }
+        .stitch-btn.loading { opacity: 0.5; cursor: not-allowed; }
+
+        #colour-row {
+            display: flex; align-items: center; gap: 8px;
+            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
+        }
+        #colour-row label {
+            font-size: 0.85em; text-transform: uppercase;
+            letter-spacing: 0.05em; color: #888; white-space: nowrap;
+        }
+        #colourPicker {
+            width: 100%; height: 32px; border: 2px solid #ccc;
+            border-radius: 6px; cursor: pointer; padding: 1px;
+            background: none;
+        }
+
+        #rotation-controls {
+            display: flex; flex-direction: column; gap: 8px; align-items: center;
+            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
+        }
+        #rotation-controls h3 {
+            margin: 0 0 4px 0; font-size: 0.85em;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: #888; text-align: center;
+        }
+        .compass {
+            display: grid;
+            grid-template-columns: repeat(3, 36px);
+            grid-template-rows: repeat(3, 36px);
+            gap: 4px;
+        }
+        .dir-btn {
+            width: 36px; height: 36px;
+            cursor: pointer; font-size: 0.85em; font-weight: bold;
+            border: 2px solid #ccc; background: #fff;
+            border-radius: 6px; text-align: center; line-height: 32px; padding: 0;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .dir-btn:hover { background: #eef; border-color: #aaf; }
+        .dir-btn.active {
+            background: #08f; color: #fff;
+            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
+        }
+        .compass-empty { width: 36px; height: 36px; }
+        .dir-btn.base {
+            border-color: #08f; color: #08f;
+            border-style: dashed;
+        }
+
+        .edge-btn-group {
+            position: absolute;
+            pointer-events: all;
+            display: flex;
+            gap: 3px;
+            transform: translate(-50%, -50%);
+        }
+        .edge-vert  { flex-direction: column; }
+        .edge-horiz { flex-direction: row; }
+        .edge-btn {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 1px solid rgba(100,100,100,0.6);
+            background: rgba(255,255,255,0.85);
+            font-size: 14px; font-weight: bold;
+            line-height: 1; padding: 0;
+            cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .edge-btn:hover { background: #08f; color: white; border-color: #08f; }
+
+        #stitch-tutorial-popup {
+            position: fixed;
+            top: 50px;
+            right: 170px;
+            width: 220px;
+            background: rgba(15, 15, 25, 0.82);
+            border-radius: 12px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            z-index: 200;
+            backdrop-filter: blur(8px);
+            padding-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #tutorial-canvas { border-radius: 10px 10px 0 0; display: block; }
+        #tutorial-label {
+            color: #fff;
+            font-size: 0.8em;
+            font-weight: bold;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-top: 8px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">
+        <strong>Voxel Knitting by Diego Fabri</strong><br>
+        Left Click: Build | Shift + Left Click: Delete<br>
+        <strong>Right Click: Rotate Camera</strong> | Mouse Wheel: Zoom
+    </div>
+
+    <div id="controls">
+        <button id="abstractModeBtn">Abstract mode</button>
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
+        <div class="layer-display">Current Layer: <span id="layerNum">0</span></div>
+        <button id="upLayer">↑ Next Layer</button>
+        <button id="downLayer">↓ Previous Layer</button>
+        <button id="resetLayer">Reset to Floor</button>
+       
+        <button id="topDownBtn">Reset Top-Down View</button>
+        
+        
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
+        <button id="saveBtn">💾 Save</button>
+        <button id="loadBtn">📂 Load</button>
+        <input type="file" id="loadFileInput" accept=".json" style="display:none;">
+        
+        
+        <button id="exportBtn">⬇ Export OBJ</button>
+        <button id="exportChartBtn">📄 Export Chart</button>
+        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
+        <label style="font-size:0.8em;color:#888;text-align:center;">Circular Knitting</label>
+        <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
+    </div>
+
+    <div id="stitch-picker">
+        <h3>Stitch</h3>
+        <button class="stitch-btn active loading" data-stitch="knit"    data-tutorial="Knit_A.glb">Knit</button>
+        <button class="stitch-btn loading"        data-stitch="castOn" data-tutorial="__sweep__">Cast On</button>
+        <button class="stitch-btn loading"        data-stitch="purl"   data-tutorial="Purl_A.glb">Purl</button>
+
+        <div id="colour-row">
+            <label>Colour</label>
+            <input type="color" id="colourPicker" value="#ff9de2">
+        </div>
+
+        <div id="rotation-controls">
+            <h3>Orientation</h3>
+            <div class="compass">
+                <div class="compass-empty"></div>
+                <button class="dir-btn active" data-dir="0">N</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="1">W</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="3">E</button>
+                <div class="compass-empty"></div>
+                <button class="dir-btn" data-dir="2">S</button>
+                <div class="compass-empty"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+       import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
+
+        let camera, scene, renderer, controls;
+        let plane;
+        let pointer, raycaster, isShiftDown = false;
+
+        let rollOverMesh, rollOverMaterial;
+        let gridHelper, bentGridHelper;
+        const modelPrototypes = {};
+        let activeStitch = 'knit';
+        let placementRotationStep = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
+        let isLeftDown = false;
+        let lastPlacedKey = null;
+        let activeColor = new THREE.Color('#ff9de2');
+
+        let currentLayer = 0;
+        const GRID_STEP = 50;
+        const objects = [];
+        const meshToModel = new Map();
+
+        let abstractMode = false;
+        const abstractTextures = {};
+
+        function loadAbstractTextures() {
+            const loader = new THREE.TextureLoader();
+            abstractTextures.knit   = loader.load('Knit.png');
+            abstractTextures.castOn = loader.load('Cast ON.png');
+            abstractTextures.purl   = loader.load('Purl.png');
+        }
+
+        function makeAbstractSprite(stitchType, color) {
+            const tex = abstractTextures[stitchType] || abstractTextures.knit;
+            const mat = new THREE.SpriteMaterial({ map: tex, color: color.clone(), transparent: true });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(GRID_STEP * 0.85, GRID_STEP * 0.85, 1);
+            sprite.visible = false;
+            return sprite;
+        }
+
+        function toggleAbstractMode() {
+            abstractMode = !abstractMode;
+            Object.values(voxelMatrix).forEach(model => {
+                model.visible = !abstractMode;
+                if (model.userData.abstractSprite) model.userData.abstractSprite.visible = abstractMode;
+            });
+            const btn = document.getElementById('abstractModeBtn');
+            btn.textContent = abstractMode ? 'Geometry mode' : 'Abstract mode';
+        }
+
+        // ── Tutorial popup mini-renderer ─────────────────────────────────────
+        let tutorialRenderer = null;
+        let tutorialScene    = null;
+        let tutorialCamera   = null;
+        let tutorialMixer    = null;
+        let tutorialClock    = null;
+        let tutorialAnimId   = null;
+        let tutorialLoadToken = 0;
+        let tutorialModel    = null;
+        let tutorialOrbitAngle = 0;
+        let tutorialSweepTime  = 0;
+
+        function initTutorialRenderer() {
+            const canvas = document.getElementById('tutorial-canvas');
+            tutorialRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+            tutorialRenderer.setSize(220, 200);
+            tutorialRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            tutorialRenderer.setClearColor(0x000000, 0);
+
+            tutorialScene = new THREE.Scene();
+            tutorialCamera = new THREE.PerspectiveCamera(40, 220 / 200, 0.1, 2000);
+
+            tutorialScene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const dir = new THREE.DirectionalLight(0xffffff, 1.8);
+            dir.position.set(1, 2, 2);
+            tutorialScene.add(dir);
+
+            tutorialClock = new THREE.Clock();
+        }
+
+        function showTutorial(glbFile, label, buttonEl) {
+            const popup = document.getElementById('stitch-tutorial-popup');
+            document.getElementById('tutorial-label').textContent = 'How to: ' + label;
+
+            // Position popup to the left of the stitch picker
+            const pickerRect = document.getElementById('stitch-picker').getBoundingClientRect();
+            popup.style.top  = Math.max(10, pickerRect.top) + 'px';
+            popup.style.right = (window.innerWidth - pickerRect.left + 10) + 'px';
+            popup.style.display = 'flex';
+
+            // Clear previous model
+            if (tutorialModel)  { tutorialScene.remove(tutorialModel); tutorialModel = null; }
+            if (tutorialMixer)  { tutorialMixer.stopAllAction(); tutorialMixer = null; }
+            if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+            tutorialOrbitAngle = Math.PI / 4;
+            const token = ++tutorialLoadToken;
+
+            new GLTFLoader().load(glbFile, (gltf) => {
+                if (token !== tutorialLoadToken) return;
+                tutorialModel = gltf.scene;
+                tutorialModel.traverse(child => {
+                    if (child.isMesh && child.material) child.material.color.set(0xaaaaaa);
+                });
+                tutorialScene.add(tutorialModel);
+
+                // Fit camera to model bounds
+                const box    = new THREE.Box3().setFromObject(tutorialModel);
+                const center = box.getCenter(new THREE.Vector3());
+                const size   = box.getSize(new THREE.Vector3());
+                const radius = Math.max(size.x, size.y, size.z) * 0.9;
+                tutorialModel.userData._center = center.clone();
+                tutorialModel.userData._radius = radius;
+                tutorialCamera.position.set(center.x, center.y + size.y * 0.2, center.z + radius);
+                tutorialCamera.lookAt(center);
+
+                // Play built-in animations if present, otherwise use procedural sweep
+                if (gltf.animations && gltf.animations.length > 0) {
+                    tutorialMixer = new THREE.AnimationMixer(tutorialModel);
+                    gltf.animations.forEach(clip =>
+                        tutorialMixer.clipAction(clip).setLoop(THREE.LoopRepeat).play()
+                    );
+                }
+            });
+
+            // Render loop
+            tutorialClock.start();
+            function loop() {
+                tutorialAnimId = requestAnimationFrame(loop);
+                const delta = tutorialClock.getDelta();
+                if (tutorialMixer) tutorialMixer.update(delta);
+
+
+                // Slow orbit around model
+                if (tutorialModel && tutorialModel.userData._center) {
+                    tutorialOrbitAngle += delta * 0.08;
+                    const c = tutorialModel.userData._center;
+                    const r = tutorialModel.userData._radius;
+                    tutorialCamera.position.set(
+                        c.x + Math.sin(tutorialOrbitAngle) * r,
+                        c.y + r * 2.75,
+                        c.z + Math.cos(tutorialOrbitAngle) * r
+                    );
+                    tutorialCamera.lookAt(c);
+                }
+                tutorialRenderer.render(tutorialScene, tutorialCamera);
+            }
+            loop();
+        }
+
+        function hideTutorial() {
+            document.getElementById('stitch-tutorial-popup').style.display = 'none';
+            tutorialLoadToken++;
+            if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+        }
+
+        function showSweepAnimation(label, buttonEl) {
+            const popup = document.getElementById('stitch-tutorial-popup');
+            document.getElementById('tutorial-label').textContent = 'How to: ' + label;
+            const pickerRect = document.getElementById('stitch-picker').getBoundingClientRect();
+            popup.style.top  = Math.max(10, pickerRect.top) + 'px';
+            popup.style.right = (window.innerWidth - pickerRect.left + 10) + 'px';
+            popup.style.display = 'flex';
+
+            if (tutorialModel)  { tutorialScene.remove(tutorialModel); tutorialModel = null; }
+            if (tutorialMixer)  { tutorialMixer.stopAllAction(); tutorialMixer = null; }
+            if (tutorialAnimId) { cancelAnimationFrame(tutorialAnimId); tutorialAnimId = null; }
+            tutorialOrbitAngle = Math.PI / 4 + Math.PI;
+            const token = ++tutorialLoadToken;
+
+            const pts = [
+                new THREE.Vector3(93.872617, 38.273751, -108.443526),
+                new THREE.Vector3(71.385173, 27.741373,   29.774756),
+                new THREE.Vector3(25.708194, 75.368919,   43.723157),
+                new THREE.Vector3(40.836486, 30.893382,  -69.721756),
+                new THREE.Vector3(115.179215, 9.263027,   -8.987683),
+                new THREE.Vector3(60.562338, 54.691913,   -5.457623),
+                new THREE.Vector3(-22.996345, 3.626598,  -54.562525),
+                new THREE.Vector3(-47.577267, -2.995578, -68.357965),
+                new THREE.Vector3(-83.260010, -3.536152, -80.322512),
+                new THREE.Vector3(-101.909366, -2.059825,-79.717535),
+                new THREE.Vector3(-116.705317, -0.057280,-76.401039),
+                new THREE.Vector3(-128.325341,  5.527890,-72.631086),
+                new THREE.Vector3(-142.284450, 22.683847,-65.851326),
+                new THREE.Vector3(-152.263599, 44.450075,-52.868579),
+                new THREE.Vector3(-155.853848, 54.969297,-36.032828),
+                new THREE.Vector3(-156.054755, 53.265221,  9.519806),
+                new THREE.Vector3(-152.176705, 41.364749, 28.385615),
+                new THREE.Vector3(-128.197374,  5.554939, 47.493739),
+                new THREE.Vector3(-112.684782, -2.577791, 51.170343),
+                new THREE.Vector3(-95.387019,  -3.805223, 54.613013),
+                new THREE.Vector3(-68.726691,  -1.849845, 54.765960),
+                new THREE.Vector3(-34.132433,   5.503662, 42.095424),
+                new THREE.Vector3(-7.983646,   20.329996, 25.755872),
+                new THREE.Vector3(43.660579,   64.159196, 10.540232),
+                new THREE.Vector3(93.872617,   38.273751, 93.611169),
+            ];
+
+            const curve    = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
+            const geometry = new THREE.TubeGeometry(curve, 300, 16, 16, false);
+            const material = new THREE.MeshLambertMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide });
+            const mesh     = new THREE.Mesh(geometry, material);
+            mesh.scale.y = -1;
+            mesh.rotation.z = Math.PI;
+            tutorialScene.add(mesh);
+            tutorialModel = mesh;
+
+            const box    = new THREE.Box3().setFromObject(mesh);
+            const center = box.getCenter(new THREE.Vector3());
+            const size   = box.getSize(new THREE.Vector3());
+            const radius = Math.max(size.x, size.y, size.z) * 1.3;
+            mesh.userData._center = center.clone();
+            mesh.userData._radius = radius;
+
+            const totalIdx = geometry.index.count;
+            let progress = 0;
+            tutorialClock.start();
+
+            function loop() {
+                if (token !== tutorialLoadToken) return;
+                tutorialAnimId = requestAnimationFrame(loop);
+                const delta = tutorialClock.getDelta();
+
+                progress += delta * 0.18;
+                if (progress > 1.3) progress = 0;
+                geometry.setDrawRange(0, Math.floor(Math.min(progress, 1.0) * totalIdx));
+
+                tutorialOrbitAngle += delta * 0.08;
+                const c = mesh.userData._center;
+                const r = mesh.userData._radius;
+                tutorialCamera.position.set(
+                    c.x + Math.sin(tutorialOrbitAngle) * r,
+                    c.y + r * 1.2,
+                    c.z + Math.cos(tutorialOrbitAngle) * r
+                );
+                tutorialCamera.lookAt(c);
+                tutorialRenderer.render(tutorialScene, tutorialCamera);
+            }
+            loop();
+        }
+
+        async function exportAbstractChart() {
+            const stitchList = Object.values(voxelMatrix);
+            if (stitchList.length === 0) { alert('No stitches to export.'); return; }
+
+            // Load PNGs fresh into Image elements for canvas drawing
+            const imgSrcs = { knit: 'Knit.png', castOn: 'Cast ON.png', purl: 'Purl.png' };
+            const imgs = {};
+            await Promise.all(Object.entries(imgSrcs).map(([key, src]) =>
+                new Promise(res => {
+                    const img = new Image();
+                    img.onload  = () => { imgs[key] = img; res(); };
+                    img.onerror = () => res();
+                    img.src = src;
+                })
+            ));
+
+            // Group stitches by layer
+            const layerMap = {};
+            stitchList.forEach(model => {
+                const layer = Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
+                (layerMap[layer] = layerMap[layer] || []).push(model);
+            });
+            const layers = Object.keys(layerMap).map(Number).sort((a, b) => a - b);
+
+            const cellSize = Math.max(20, Math.min(40, Math.floor(680 / Math.max(gridDivisionsX, 1))));
+            const numMargin = cellSize * 0.7;  // space for row/col numbers
+            const pad = 8;
+            const gridPxW = gridDivisionsX * cellSize;
+            const gridPxH = gridDivisionsZ * cellSize;
+            const canvasW = numMargin + gridPxW + pad;
+            const canvasH = pad + gridPxH + numMargin;
+
+            const pages = layers.map(layer => {
+                const canvas = document.createElement('canvas');
+                canvas.width  = canvasW;
+                canvas.height = canvasH;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(0, 0, canvasW, canvasH);
+
+                const ox = numMargin;   // grid left edge in canvas
+                const oy = pad;         // grid top edge in canvas
+
+                // Color fill + symbol per stitch
+                layerMap[layer].forEach(model => {
+                    const flat = model.userData.flatPos;
+                    const col = Math.floor((flat.x - gridMinX) / GRID_STEP);
+                    const row = Math.floor((flat.z - gridMinZ) / GRID_STEP);
+                    if (col < 0 || col >= gridDivisionsX || row < 0 || row >= gridDivisionsZ) return;
+                    const cx = ox + col * cellSize;
+                    const cy = oy + row * cellSize;
+
+                    // Tinted background
+                    ctx.fillStyle = '#' + model.userData.originalColor.getHexString();
+                    ctx.globalAlpha = 0.25;
+                    ctx.fillRect(cx, cy, cellSize, cellSize);
+                    ctx.globalAlpha = 1;
+
+                    // Symbol image
+                    const img = imgs[model.userData.stitchType];
+                    if (img) ctx.drawImage(img, cx + 1, cy + 1, cellSize - 2, cellSize - 2);
+                });
+
+                // Grid lines
+                ctx.strokeStyle = '#bbb';
+                ctx.lineWidth = 0.5;
+                for (let c = 0; c <= gridDivisionsX; c++) {
+                    ctx.beginPath();
+                    ctx.moveTo(ox + c * cellSize, oy);
+                    ctx.lineTo(ox + c * cellSize, oy + gridPxH);
+                    ctx.stroke();
+                }
+                for (let r = 0; r <= gridDivisionsZ; r++) {
+                    ctx.beginPath();
+                    ctx.moveTo(ox, oy + r * cellSize);
+                    ctx.lineTo(ox + gridPxW, oy + r * cellSize);
+                    ctx.stroke();
+                }
+
+                // Outer border
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(ox, oy, gridPxW, gridPxH);
+
+                // Row numbers on left — count from bottom up (knitting convention)
+                const fontSize = Math.max(8, Math.min(11, cellSize * 0.4));
+                ctx.font = `${fontSize}px sans-serif`;
+                ctx.fillStyle = '#555';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                for (let r = 0; r < gridDivisionsZ; r++) {
+                    ctx.fillText(gridDivisionsZ - r, ox - 3, oy + r * cellSize + cellSize / 2);
+                }
+
+                // Column numbers on bottom
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                for (let c = 0; c < gridDivisionsX; c++) {
+                    ctx.fillText(c + 1, ox + c * cellSize + cellSize / 2, oy + gridPxH + 3);
+                }
+
+                return { canvas, layer };
+            });
+
+            // Build print window using only DOM APIs — no HTML strings in source
+            const win = window.open('', '_blank');
+            if (!win) { alert('Pop-up was blocked. Please allow pop-ups for this page and try again.'); return; }
+
+            const doc = win.document;
+            doc.title = 'Knitting Chart';
+
+            const style = doc.createElement('style');
+            style.textContent = [
+                '* { box-sizing: border-box; }',
+                'body { font-family: sans-serif; background: #fff; margin: 0; }',
+                '.page { padding: 24px; text-align: center; page-break-after: always; }',
+                '.layer-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; }',
+                'img { max-width: 100%; }',
+                '.no-print { text-align: center; padding: 16px; }',
+                '.no-print button { padding: 10px 24px; font-size: 1em; cursor: pointer; }',
+                '@media print { .no-print { display: none; } .page { page-break-after: always; padding: 10mm; } }'
+            ].join(' ');
+            doc.head.appendChild(style);
+
+            const printDiv = doc.createElement('div');
+            printDiv.className = 'no-print';
+            const printBtn = doc.createElement('button');
+            printBtn.textContent = 'Print / Save as PDF';
+            printBtn.onclick = () => win.print();
+            printDiv.appendChild(printBtn);
+            doc.body.appendChild(printDiv);
+
+            for (const { canvas, layer } of pages) {
+                const pageDiv = doc.createElement('div');
+                pageDiv.className = 'page';
+                const titleEl = doc.createElement('div');
+                titleEl.className = 'layer-title';
+                titleEl.textContent = 'Layer ' + layer;
+                pageDiv.appendChild(titleEl);
+                try {
+                    const img = doc.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    pageDiv.appendChild(img);
+                } catch (e) {
+                    const p = doc.createElement('p');
+                    p.textContent = 'Layer ' + layer + ' could not render.';
+                    pageDiv.appendChild(p);
+                }
+                doc.body.appendChild(pageDiv);
+            }
+        }
+
+        // --- THE 3D MATRIX ---
+        const voxelMatrix = {};
+        let isDirty = false;
+
+        let bendFactor = 0;
+        let gridMinX = -500, gridMaxX = 500;
+        let gridMinZ = -500, gridMaxZ = 500;
+        let GRID_WIDTH_X = gridMaxX - gridMinX;
+        let GRID_WIDTH_Z = gridMaxZ - gridMinZ;
+        let gridDivisionsX = GRID_WIDTH_X / GRID_STEP;
+        let gridDivisionsZ = GRID_WIDTH_Z / GRID_STEP;
+
+        function syncGridDimensions() {
+            GRID_WIDTH_X = gridMaxX - gridMinX;
+            GRID_WIDTH_Z = gridMaxZ - gridMinZ;
+            gridDivisionsX = GRID_WIDTH_X / GRID_STEP;
+            gridDivisionsZ = GRID_WIDTH_Z / GRID_STEP;
+        }
+
+        function applyBendToModel(model) {
+            const flat = model.userData.flatPos;
+            if (!flat) return;
+            if (bendFactor === 0) {
+                model.position.copy(flat);
+                if (model.userData.baseQuat) model.quaternion.copy(model.userData.baseQuat);
+                if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(flat);
+                return;
+            }
+            const totalAngle = 2 * Math.PI * bendFactor;
+            const centerX = (gridMinX + gridMaxX) / 2;
+            const radius = GRID_WIDTH_X / totalAngle;
+            // X wraps downward around the grid centre column
+            const angle = ((flat.x - centerX) / GRID_WIDTH_X) * totalAngle;
+            model.position.set(
+                Math.sin(angle) * radius,
+                flat.y + (Math.cos(angle) - 1) * radius,
+                flat.z
+            );
+            if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(model.position);
+            // Tilt the stitch to stay tangent to the cylinder surface (rotate around Z)
+            const qBend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
+            model.quaternion.copy(qBend.multiply((model.userData.baseQuat || new THREE.Quaternion()).clone()));
+        }
+
+        function updateAllBends() {
+            Object.values(voxelMatrix).forEach(applyBendToModel);
+        }
+
+        function makeFlatGridHelper() {
+            const pts = [];
+            for (let x = gridMinX; x <= gridMaxX + 0.1; x += GRID_STEP)
+                pts.push(x, 0, gridMinZ,  x, 0, gridMaxZ);
+            for (let z = gridMinZ; z <= gridMaxZ + 0.1; z += GRID_STEP)
+                pts.push(gridMinX, 0, z,  gridMaxX, 0, z);
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+            return new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x888888 }));
+        }
+
+        function recreateGrid() {
+            syncGridDimensions();
+            const cx = (gridMinX + gridMaxX) / 2;
+            const cz = (gridMinZ + gridMaxZ) / 2;
+
+            if (gridHelper) { scene.remove(gridHelper); gridHelper.geometry.dispose(); }
+            gridHelper = makeFlatGridHelper();
+            scene.add(gridHelper);
+
+            const idx = objects.indexOf(plane);
+            if (idx !== -1) objects.splice(idx, 1);
+            scene.remove(plane);
+            plane.geometry.dispose();
+            const geo = new THREE.PlaneGeometry(GRID_WIDTH_X, GRID_WIDTH_Z);
+            geo.rotateX(-Math.PI / 2);
+            plane = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ visible: false }));
+            plane.position.set(cx, currentLayer * GRID_STEP, cz);
+            scene.add(plane);
+            objects.push(plane);
+
+            updateBentGrid();
+        }
+
+        function updateBentGrid() {
+            if (bentGridHelper) { scene.remove(bentGridHelper); bentGridHelper.geometry.dispose(); bentGridHelper = null; }
+            if (bendFactor === 0) { gridHelper.visible = true; return; }
+            gridHelper.visible = false;
+
+            const totalAngle = 2 * Math.PI * bendFactor;
+            const centerX = (gridMinX + gridMaxX) / 2;
+            const radius = GRID_WIDTH_X / totalAngle;
+            const segs = 64;
+            const pts = [];
+
+            // Cross-sectional arcs at each Z grid line
+            for (let zi = 0; zi <= gridDivisionsZ; zi++) {
+                const z = gridMinZ + zi * GRID_STEP;
+                for (let si = 0; si < segs; si++) {
+                    const x1 = gridMinX + (si / segs) * GRID_WIDTH_X;
+                    const x2 = gridMinX + ((si + 1) / segs) * GRID_WIDTH_X;
+                    const a1 = (x1 - centerX) / GRID_WIDTH_X * totalAngle;
+                    const a2 = (x2 - centerX) / GRID_WIDTH_X * totalAngle;
+                    pts.push(
+                        Math.sin(a1) * radius, (Math.cos(a1) - 1) * radius, z,
+                        Math.sin(a2) * radius, (Math.cos(a2) - 1) * radius, z
+                    );
+                }
+            }
+
+            // Longitudinal lines at each X grid line
+            for (let xi = 0; xi <= gridDivisionsX; xi++) {
+                const x = gridMinX + xi * GRID_STEP;
+                const a = (x - centerX) / GRID_WIDTH_X * totalAngle;
+                const cx = Math.sin(a) * radius;
+                const cy = (Math.cos(a) - 1) * radius;
+                pts.push(cx, cy, gridMinZ,  cx, cy, gridMaxZ);
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+            bentGridHelper = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: 0x888888 }));
+            scene.add(bentGridHelper);
+        }
+
+        function getMatrixKey(position) {
+            const x = Math.round(position.x);
+            const y = Math.round(position.y);
+            const z = Math.round(position.z);
+            return `${x},${y},${z}`;
+        }
+
+        // Back offset: one grid cell behind the stitch based on its facing direction.
+        // N(0) faces -Z → back is +Z, W(1) faces -X → back is +X,
+        // S(2) faces +Z → back is -Z, E(3) faces +X → back is -X.
+        function getBackOffset(effectiveStep) {
+            switch (effectiveStep) {
+                case 0: return new THREE.Vector3(0, 0,  GRID_STEP);
+                case 1: return new THREE.Vector3( GRID_STEP, 0, 0);
+                case 2: return new THREE.Vector3(0, 0, -GRID_STEP);
+                case 3: return new THREE.Vector3(-GRID_STEP, 0, 0);
+                default: return new THREE.Vector3();
+            }
+        }
+
+        function setModelColor(model, color) {
+            model.traverse(child => {
+                if (child.isMesh && child.material) child.material.color.set(color);
+            });
+            if (model.userData.abstractSprite) model.userData.abstractSprite.material.color.set(color);
+        }
+
+        const RED = new THREE.Color(0xff2020);
+
+        function updateStitchValidity(model) {
+            if (!model || model.userData.stitchType === 'castOn') return;
+            const flat = model.userData.flatPos || model.position;
+            const backPos = flat.clone().add(getBackOffset(model.userData.effectiveStep));
+            const hasBack = voxelMatrix[getMatrixKey(backPos)] !== undefined;
+            setModelColor(model, hasBack ? model.userData.originalColor : RED);
+        }
+
+        function revalidateNeighbors(flatPos) {
+            for (let s = 0; s < 4; s++) {
+                const frontOffset = getBackOffset(s).clone().negate();
+                const candidateKey = getMatrixKey(flatPos.clone().add(frontOffset));
+                const candidate = voxelMatrix[candidateKey];
+                if (candidate && candidate.userData.effectiveStep === s) {
+                    updateStitchValidity(candidate);
+                }
+            }
+        }
+
+        function loadStitch(key, filename, rotationY = Math.PI / 2, rotationX = 0, offsetZ = 0, offsetX = 0, mirrorX = false) {
+            const loader = new GLTFLoader();
+            loader.load(filename, function (gltf) {
+                const proto = gltf.scene;
+                proto.rotation.y = rotationY;
+                proto.rotation.x = rotationX;
+                proto.position.z = offsetZ;
+                proto.position.x = offsetX;
+                const box = new THREE.Box3().setFromObject(proto);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const s = 80 / maxDim;
+                proto.scale.set(s, s, mirrorX ? -s : s);
+                modelPrototypes[key] = proto;
+                const btn = document.querySelector(`.stitch-btn[data-stitch="${key}"]`);
+                if (btn) btn.classList.remove('loading');
+            }, undefined, (error) => {
+                console.error(`Failed to load ${filename}`, error);
+            });
+        }
+
+        loadStitch('knit',   'Knit_A.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('castOn', 'Cast ON.glb', Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadStitch('purl',   'Purl_A.glb',  Math.PI / 2 + Math.PI, 0, 0, 0, true);
+        loadAbstractTextures();
+        initTutorialRenderer();
+
+
+        init();
+        setupUI();
+        animate();
+
+        function init() {
+            camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
+            setTopDownView();
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color( 0xf0f0f0 );
+
+            const rollOverGeo = new THREE.BoxGeometry( 50, 50, 50 );
+            rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
+            rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+            scene.add( rollOverMesh );
+
+            gridHelper = makeFlatGridHelper();
+            scene.add( gridHelper );
+
+            raycaster = new THREE.Raycaster();
+            pointer = new THREE.Vector2();
+
+            const geometry = new THREE.PlaneGeometry( GRID_WIDTH_X, GRID_WIDTH_Z );
+            geometry.rotateX( - Math.PI / 2 );
+            plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+            scene.add( plane );
+            objects.push( plane );
+
+            const ambientLight = new THREE.AmbientLight( 0xffffff, 2 );
+            scene.add( ambientLight );
+            const directionalLight = new THREE.DirectionalLight( 0xffffff, 2 );
+            directionalLight.position.set( 1, 0.75, 0.5 ).normalize();
+            scene.add( directionalLight );
+            const directionalLight2 = new THREE.DirectionalLight( 0xffffff, 1 );
+            directionalLight2.position.set( -1, 0.5, -0.5 ).normalize();
+            scene.add( directionalLight2 );
+
+            renderer = new THREE.WebGLRenderer( { antialias: true } );
+            renderer.setPixelRatio( window.devicePixelRatio );
+            renderer.setSize( window.innerWidth, window.innerHeight );
+            document.body.appendChild( renderer.domElement );
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.4;
+            controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+
+            window.addEventListener( 'pointermove', onPointerMove );
+            window.addEventListener( 'pointerdown', onPointerDown );
+            window.addEventListener( 'keydown', (e) => { if (e.keyCode === 16) isShiftDown = true; } );
+            window.addEventListener( 'keyup', (e) => { if (e.keyCode === 16) isShiftDown = false; } );
+            window.addEventListener( 'pointerup', (e) => { if (e.button === 0) { isLeftDown = false; lastPlacedKey = null; } } );
+            window.addEventListener( 'resize', onWindowResize );
+            window.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+
+        function setTopDownView() {
+            camera.position.set(0, 1500, 0);
+            camera.lookAt(0, 0, 0);
+            if (controls) {
+                controls.target.set(0, 0, 0);
+                controls.reset();
+                controls.update();
+            }
+        }
+
+        function setupUI() {
+            const layerText = document.getElementById('layerNum');
+            document.getElementById('upLayer').onclick = () => { currentLayer++; updatePlane(); };
+            document.getElementById('downLayer').onclick = () => { if(currentLayer > 0) currentLayer--; updatePlane(); };
+            document.getElementById('resetLayer').onclick = () => { currentLayer = 0; updatePlane(); };
+            document.getElementById('topDownBtn').onclick = () => setTopDownView();
+
+            function updatePlane() {
+                layerText.innerText = currentLayer;
+                plane.position.y = currentLayer * GRID_STEP;
+                if (window._updateCompass) window._updateCompass();
+                if (bendFactor > 0) updateBentGrid();
+            }
+
+            const stitchLabels = { knit: 'Knit', castOn: 'Cast On', purl: 'Purl' };
+            document.querySelectorAll('.stitch-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.classList.contains('loading')) return;
+                    activeStitch = btn.dataset.stitch;
+                    document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+                btn.addEventListener('mouseenter', () => {
+                    const glb   = btn.dataset.tutorial;
+                    const label = stitchLabels[btn.dataset.stitch] || btn.dataset.stitch;
+                    if (!glb) return;
+                    if (glb === '__sweep__') showSweepAnimation(label, btn);
+                    else showTutorial(glb, label, btn);
+                });
+                btn.addEventListener('mouseleave', hideTutorial);
+            });
+
+                function getEffectiveStep() {
+                return (currentLayer % 2 === 0)
+                    ? placementRotationStep
+                    : (placementRotationStep + 2) % 4;
+            }
+
+            function updateCompass() {
+                const effective = getEffectiveStep();
+                document.querySelectorAll('.dir-btn').forEach(b => {
+                    const dir = parseInt(b.dataset.dir);
+                    b.classList.toggle('active', dir === effective);
+                    b.classList.toggle('base', dir === placementRotationStep && dir !== effective);
+                });
+            }
+
+            document.querySelectorAll('.dir-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    placementRotationStep = parseInt(btn.dataset.dir);
+                    updateCompass();
+                });
+            });
+
+            // expose so layer buttons can trigger it
+            window._updateCompass = updateCompass;
+
+            document.getElementById('colourPicker').addEventListener('input', (e) => {
+                activeColor = new THREE.Color(e.target.value);
+            });
+
+            function stitchAtX(x) {
+                return Object.values(voxelMatrix).some(m => Math.abs(m.userData.flatPos.x - x) < GRID_STEP / 2);
+            }
+            function stitchAtZ(z) {
+                return Object.values(voxelMatrix).some(m => Math.abs(m.userData.flatPos.z - z) < GRID_STEP / 2);
+            }
+
+            document.getElementById('colAddLeft').onclick  = () => { gridMinX -= GRID_STEP; recreateGrid(); };
+            document.getElementById('colRemLeft').onclick  = () => {
+                if (gridDivisionsX > 2 && !stitchAtX(gridMinX + GRID_STEP / 2)) { gridMinX += GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('colAddRight').onclick = () => { gridMaxX += GRID_STEP; recreateGrid(); };
+            document.getElementById('colRemRight').onclick = () => {
+                if (gridDivisionsX > 2 && !stitchAtX(gridMaxX - GRID_STEP / 2)) { gridMaxX -= GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('rowAddFront').onclick = () => { gridMinZ -= GRID_STEP; recreateGrid(); };
+            document.getElementById('rowRemFront').onclick = () => {
+                if (gridDivisionsZ > 2 && !stitchAtZ(gridMinZ + GRID_STEP / 2)) { gridMinZ += GRID_STEP; recreateGrid(); }
+            };
+            document.getElementById('rowAddBack').onclick  = () => { gridMaxZ += GRID_STEP; recreateGrid(); };
+            document.getElementById('rowRemBack').onclick  = () => {
+                if (gridDivisionsZ > 2 && !stitchAtZ(gridMaxZ - GRID_STEP / 2)) { gridMaxZ -= GRID_STEP; recreateGrid(); }
+            };
+
+            document.getElementById('bendSlider').addEventListener('input', (e) => {
+                bendFactor = parseFloat(e.target.value);
+                updateAllBends();
+                updateBentGrid();
+            });
+
+            document.getElementById('abstractModeBtn').addEventListener('click', toggleAbstractMode);
+            document.getElementById('exportChartBtn').addEventListener('click', exportAbstractChart);
+
+            document.getElementById('saveBtn').addEventListener('click', () => {
+                const stitches = Object.values(voxelMatrix).map(model => ({
+                    x: model.userData.flatPos.x,
+                    y: model.userData.flatPos.y,
+                    z: model.userData.flatPos.z,
+                    stitchType: model.userData.stitchType,
+                    color: '#' + model.userData.originalColor.getHexString(),
+                    effectiveStep: model.userData.effectiveStep
+                }));
+                const data = {
+                    version: 1,
+                    gridMinX, gridMaxX, gridMinZ, gridMaxZ,
+                    currentLayer, bendFactor,
+                    stitches
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'knitting_design.json';
+                a.click();
+                URL.revokeObjectURL(url);
+                isDirty = false;
+            });
+
+            document.getElementById('loadBtn').addEventListener('click', () => {
+                document.getElementById('loadFileInput').click();
+            });
+
+            document.getElementById('loadFileInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                e.target.value = '';
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    let data;
+                    try { data = JSON.parse(ev.target.result); }
+                    catch { alert('Invalid file.'); return; }
+
+                    // Clear existing stitches
+                    Object.values(voxelMatrix).forEach(model => {
+                        if (model.userData.supportCube) scene.remove(model.userData.supportCube);
+                        if (model.userData.abstractSprite) {
+                            scene.remove(model.userData.abstractSprite);
+                            model.userData.abstractSprite.material.dispose();
+                        }
+                        scene.remove(model);
+                    });
+                    for (const k in voxelMatrix) delete voxelMatrix[k];
+
+                    // Restore grid
+                    gridMinX = data.gridMinX ?? gridMinX;
+                    gridMaxX = data.gridMaxX ?? gridMaxX;
+                    gridMinZ = data.gridMinZ ?? gridMinZ;
+                    gridMaxZ = data.gridMaxZ ?? gridMaxZ;
+                    recreateGrid();
+
+                    // Restore layer and bend
+                    currentLayer = data.currentLayer ?? 0;
+                    document.getElementById('layerNum').innerText = currentLayer;
+                    plane.position.y = currentLayer * GRID_STEP;
+                    bendFactor = data.bendFactor ?? 0;
+                    document.getElementById('bendSlider').value = bendFactor;
+
+                    // Re-place stitches
+                    (data.stitches || []).forEach(s => {
+                        if (!modelPrototypes[s.stitchType]) return;
+                        const model = modelPrototypes[s.stitchType].clone();
+                        model.rotation.y += s.effectiveStep * (Math.PI / 2);
+                        model.position.set(s.x, s.y, s.z);
+                        model.userData.stitchType = s.stitchType;
+                        model.userData.originalColor = new THREE.Color(s.color);
+                        model.userData.effectiveStep = s.effectiveStep;
+                        model.userData.flatPos = model.position.clone();
+                        model.userData.baseQuat = model.quaternion.clone();
+                        const key = getMatrixKey(model.position);
+                        model.userData.matrixKey = key;
+                        setModelColor(model, model.userData.originalColor);
+                        voxelMatrix[key] = model;
+                        scene.add(model);
+                        model.visible = !abstractMode;
+                        const sprite = makeAbstractSprite(s.stitchType, model.userData.originalColor);
+                        sprite.position.copy(model.position);
+                        sprite.visible = abstractMode;
+                        scene.add(sprite);
+                        model.userData.abstractSprite = sprite;
+                        applyBendToModel(model);
+                    });
+                    isDirty = true;
+                };
+                reader.readAsText(file);
+            });
+
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                const keys = Object.keys(voxelMatrix);
+                if (keys.length === 0) {
+                    alert('Nothing to export — place some stitches first!');
+                    return;
+                }
+                const exportGroup = new THREE.Group();
+                keys.forEach(k => exportGroup.add(voxelMatrix[k].clone()));
+
+                const exporter = new OBJExporter();
+                const result = exporter.parse(exportGroup);
+                const blob = new Blob([result], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'knit_model.obj';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function placeVoxel(intersect) {
+            if (!modelPrototypes[activeStitch]) return;
+
+            const model = modelPrototypes[activeStitch].clone();
+            const effectiveStep = (currentLayer % 2 === 0)
+                ? placementRotationStep
+                : (placementRotationStep + 2) % 4;
+            model.rotation.y += effectiveStep * (Math.PI / 2);
+            model.position.copy(intersect.point).add(intersect.face.normal);
+            model.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+            model.position.y = (currentLayer * GRID_STEP) + 25;
+
+            const currentKey = getMatrixKey(model.position);
+            if (currentKey === lastPlacedKey) return;   // same cell, skip
+            if (voxelMatrix[currentKey]) return;         // already occupied
+            lastPlacedKey = currentKey;
+
+            // Remove red support cube from block above if present
+            const posAbove = model.position.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && modelAbove.userData.supportCube) {
+                scene.remove(modelAbove.userData.supportCube);
+                modelAbove.userData.supportCube = null;
+            }
+
+            // Stability check — spawn red cube if unsupported
+            const posUnder = model.position.clone();
+            posUnder.y -= GRID_STEP;
+            const isSupported = (currentLayer === 0) || (voxelMatrix[getMatrixKey(posUnder)] !== undefined);
+            if (!isSupported) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(posUnder);
+                scene.add(supportCube);
+                model.userData.supportCube = supportCube;
+            }
+
+            model.userData.stitchType = activeStitch;
+            model.userData.originalColor = activeColor.clone();
+            model.userData.effectiveStep = effectiveStep;
+            model.userData.flatPos = model.position.clone();
+            model.userData.baseRotY = model.rotation.y;
+            model.userData.baseQuat = model.quaternion.clone();
+            model.userData.matrixKey = currentKey;
+
+            voxelMatrix[currentKey] = model;
+            isDirty = true;
+            scene.add(model);
+            model.visible = !abstractMode;
+            const sprite = makeAbstractSprite(activeStitch, activeColor);
+            sprite.position.copy(model.position);
+            sprite.visible = abstractMode;
+            scene.add(sprite);
+            model.userData.abstractSprite = sprite;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    if (!child.geometry.attributes.normal) {
+                        child.geometry.computeVertexNormals();
+                    }
+                    const mat = new THREE.MeshStandardMaterial({
+                        color:     activeColor.clone(),
+                        roughness: 0.75,
+                        metalness: 0.15,
+                    });
+                    mat.onBeforeCompile = (shader) => {
+                        shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
+                        shader.uniforms.uFresnelPower = { value: 2.0 };
+                        shader.uniforms.uFresnelStr   = { value: 0.6 };
+                        shader.fragmentShader = `
+                            uniform vec3  uFresnelColor;
+                            uniform float uFresnelPower;
+                            uniform float uFresnelStr;
+                        ` + shader.fragmentShader;
+                        shader.fragmentShader = shader.fragmentShader.replace(
+                            '#include <output_fragment>',
+                            `#include <output_fragment>
+                            float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
+                            gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
+                        );
+                    };
+                    child.material = mat;
+                    objects.push(child);
+                    meshToModel.set(child, model);
+                }
+            });
+            // Validate after materials are set so color override takes effect
+            updateStitchValidity(model);
+            revalidateNeighbors(model.userData.flatPos);
+            applyBendToModel(model);
+        }
+
+        function deleteVoxel(intersect) {
+            const rootModel = meshToModel.get(intersect.object);
+            if (!rootModel) return;
+
+            const deletedPos = rootModel.userData.flatPos.clone();
+            delete voxelMatrix[rootModel.userData.matrixKey];
+
+            if (rootModel.userData.supportCube) {
+                scene.remove(rootModel.userData.supportCube);
+            }
+
+            const posAbove = deletedPos.clone();
+            posAbove.y += GRID_STEP;
+            const modelAbove = voxelMatrix[getMatrixKey(posAbove)];
+            if (modelAbove && !modelAbove.userData.supportCube) {
+                const cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+                const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.12, transparent: true });
+                const supportCube = new THREE.Mesh(cubeGeo, cubeMat);
+                supportCube.position.copy(deletedPos);
+                scene.add(supportCube);
+                modelAbove.userData.supportCube = supportCube;
+            }
+
+            rootModel.traverse((child) => {
+                if (child.isMesh) {
+                    objects.splice(objects.indexOf(child), 1);
+                    meshToModel.delete(child);
+                }
+            });
+            if (rootModel.userData.abstractSprite) {
+                scene.remove(rootModel.userData.abstractSprite);
+                rootModel.userData.abstractSprite.material.dispose();
+            }
+            scene.remove(rootModel);
+            isDirty = true;
+            revalidateNeighbors(deletedPos);
+        }
+
+        function onPointerMove( event ) {
+            pointer.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 2 + 1 );
+            raycaster.setFromCamera( pointer, camera );
+            const intersects = raycaster.intersectObjects( objects, false );
+            if ( intersects.length > 0 ) {
+                const intersect = intersects[ 0 ];
+                rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+                rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+                rollOverMesh.position.y = (currentLayer * GRID_STEP) + 25;
+
+                if (isLeftDown) {
+                    isShiftDown ? deleteVoxel(intersect) : placeVoxel(intersect);
+                }
+            }
+        }
+
+        function onPointerDown(event) {
+            if (event.button !== 0) return;
+            if (event.target.closest('#controls, #stitch-picker')) return;
+            isLeftDown = true;
+            lastPlacedKey = null;
+
+            pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(objects, false);
+
+            if (intersects.length > 0) {
+                isShiftDown ? deleteVoxel(intersects[0]) : placeVoxel(intersects[0]);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize( window.innerWidth, window.innerHeight );
+        }
+
+        function updateGridEdgeBtns() {
+            const rect = renderer.domElement.getBoundingClientRect();
+            const cX = (gridMinX + gridMaxX) / 2;
+            const cZ = (gridMinZ + gridMaxZ) / 2;
+            const pad = GRID_STEP * 1.5;
+            const edges = [
+                { id: 'edge-left',  pos: new THREE.Vector3(gridMinX - pad, 0, cZ) },
+                { id: 'edge-right', pos: new THREE.Vector3(gridMaxX + pad, 0, cZ) },
+                { id: 'edge-front', pos: new THREE.Vector3(cX, 0, gridMinZ - pad) },
+                { id: 'edge-back',  pos: new THREE.Vector3(cX, 0, gridMaxZ + pad) },
+            ];
+            edges.forEach(({ id, pos }) => {
+                const v = pos.clone().project(camera);
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (v.z > 1) { el.style.display = 'none'; return; }
+                el.style.display = '';
+                el.style.left = (rect.left + (v.x + 1) / 2 * rect.width)  + 'px';
+                el.style.top  = (rect.top  + (-v.y + 1) / 2 * rect.height) + 'px';
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+            updateGridEdgeBtns();
+        }
+
+        window.addEventListener('beforeunload', (e) => {
+            if (!isDirty) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
+    </script>
+
+    <div id="stitch-tutorial-popup">
+        <canvas id="tutorial-canvas" width="220" height="200"></canvas>
+        <div id="tutorial-label">How to: Knit</div>
+    </div>
+
+    <div id="grid-edge-btns" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;">
+        <div id="edge-left"  class="edge-btn-group edge-vert">
+            <button id="colAddLeft"  class="edge-btn" title="Add column left">+</button>
+            <button id="colRemLeft"  class="edge-btn" title="Remove column left">−</button>
+        </div>
+        <div id="edge-right" class="edge-btn-group edge-vert">
+            <button id="colAddRight" class="edge-btn" title="Add column right">+</button>
+            <button id="colRemRight" class="edge-btn" title="Remove column right">−</button>
+        </div>
+        <div id="edge-front" class="edge-btn-group edge-horiz">
+            <button id="rowAddFront" class="edge-btn" title="Add row front">+</button>
+            <button id="rowRemFront" class="edge-btn" title="Remove row front">−</button>
+        </div>
+        <div id="edge-back"  class="edge-btn-group edge-horiz">
+            <button id="rowAddBack"  class="edge-btn" title="Add row back">+</button>
+            <button id="rowRemBack"  class="edge-btn" title="Remove row back">−</button>
+        </div>
+    </div>
+</body>
+</html>
