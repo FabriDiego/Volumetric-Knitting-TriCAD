@@ -4,258 +4,441 @@
     <title>three.js webgl - DigiKnitting Voxel Pro</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f0f0f0; color: #444; margin: 0; overflow: hidden; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; pointer-events: none; }
-        #controls {
-            position: absolute; top: 50px; left: 20px;
-            background: rgba(255, 255, 255, 0.9); padding: 15px;
-            border-radius: 8px; z-index: 100;
-            display: flex; flex-direction: column; gap: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        /* ─── Design tokens — Light theme (Inventory dashboard ref) ─── */
+        :root {
+            --bg-body:      #ECEAE2;          /* warm cream canvas */
+            --bg-panel:     #FFFFFF;          /* white panels */
+            --bg-card:      #F5F2EA;          /* soft warm card */
+            --bg-card-2:    #EDE9DF;          /* slightly deeper card */
+            --accent:       #d6cfeb;          /* bright reference yellow */
+            --accent-dk:    #989ee4;          /* darker yellow for borders */
+            --accent-glow:  #edd93047;
+            --orange:       #F08030;          /* reference orange accent */
+            --orange-glow:  rgba(240,128,48,0.22);
+            --dark:         #22cfa9;          /* near-black (dark card) */
+            --danger:       #D94040;
+            --text-1:       #1A1A18;          /* primary text */
+            --text-2:       #7A7870;          /* secondary text */
+            --text-3:       #C0BDB4;          /* muted / placeholder */
+            --border:       rgba(0,0,0,0.07);
+            --border-2:     rgba(0,0,0,0.12);
+            --r-panel:      18px;
+            --r-card:       13px;
+            --r-btn:        9px;
+            --shadow-panel: 0 4px 24px rgba(0,0,0,0.09);
+            --shadow-card:  0 2px 8px rgba(0,0,0,0.05);
         }
-        button { padding: 8px 12px; cursor: pointer; font-weight: bold; border: 1px solid #ccc; background: #fff; }
-        button:hover { background: #eee; }
-        #topDownBtn { background: #08f; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 10px;}
-        #strengthBtn { border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; background: #fff; }
-        #strengthBtn.active { background: #e63; color: #fff; }
-        #exportBtn { background: #2a2; color: white; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-top: 4px; }
-        .layer-display { font-size: 1.1em; text-align: center; font-weight: bold; color: #08f; }
 
+        /* ─── Reset / Base ──────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            background: var(--bg-body);
+            color: var(--text-1);
+            margin: 0; overflow: hidden;
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: 13px;
+        }
+        button { font-family: inherit; }
+        #info { position: absolute; top: 10px; width: 100%; text-align: center; z-index: 100; pointer-events: none; }
+
+        /* ─── Left panel ────────────────────────────────────────────── */
+        #controls {
+            position: absolute; top: 20px; left: 20px;
+            width: 192px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--r-panel);
+            padding: 16px 14px 18px;
+            z-index: 100;
+            display: flex; flex-direction: column; gap: 12px;
+            box-shadow: var(--shadow-panel);
+        }
+
+        /* Panel logo/header */
+        .panel-logo {
+            display: flex; align-items: center; gap: 9px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-logo-icon {
+            width: 32px; height: 32px; border-radius: 9px;
+            background: var(--dark);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; flex-shrink: 0;
+        }
+        .panel-logo-text { font-size: 0.94em; font-weight: 700; color: var(--text-1); line-height: 1.2; }
+        .panel-logo-sub  { font-size: 0.71em; color: var(--text-2); font-weight: 400; }
+
+        /* Cards inside left panel */
+        .ctrl-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 11px 11px 10px;
+            display: flex; flex-direction: column; gap: 7px;
+        }
+        .ctrl-card-label {
+            font-size: 0.67em; font-weight: 700; letter-spacing: 0.10em;
+            text-transform: uppercase; color: var(--text-2);
+            margin-bottom: 1px;
+        }
+
+        /* Layer badge */
+        .layer-display {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .layer-badge {
+            background: var(--dark);
+            border-radius: 20px;
+            padding: 3px 15px;
+            font-size: 1.12em; font-weight: 700;
+            color: #FFFFFF;
+            letter-spacing: 0.04em;
+        }
+
+        /* Button row (two side-by-side) */
+        .btn-row { display: flex; gap: 6px; }
+        .btn-row > button { flex: 1; }
+
+        /* Generic control button */
+        .ctrl-btn {
+            width: 100%; padding: 8px 10px;
+            cursor: pointer; font-weight: 600; font-size: 0.82em;
+            border: 1px solid var(--border-2);
+            background: var(--bg-card-2);
+            color: var(--text-1);
+            border-radius: var(--r-btn);
+            text-align: center;
+            transition: background 0.13s, border-color 0.13s, box-shadow 0.13s;
+            white-space: nowrap;
+        }
+        .ctrl-btn:hover {
+            background: #E4E0D5;
+            border-color: rgba(0,0,0,0.18);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+
+        /* Yellow primary (Save) */
+        .ctrl-btn.primary {
+            background: var(--accent);
+            color: var(--dark);
+            border-color: var(--accent-dk);
+            font-weight: 700;
+        }
+        .ctrl-btn.primary:hover {
+            background: #e1e1e1;
+            box-shadow: 0 2px 12px var(--accent-glow);
+        }
+
+        /* Dark-card button (Top-Down) */
+        .ctrl-btn.blue {
+            background: var(--dark);
+            color: #FFFFFF;
+            border-color: var(--dark);
+            font-weight: 700;
+        }
+        .ctrl-btn.blue:hover {
+            background: #333330;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+        }
+
+        /* Active toggle (Abstract / Section) */
+        .ctrl-btn.active {
+            background: var(--accent);
+            color: var(--dark);
+            border-color: var(--accent-dk);
+            font-weight: 700;
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+        .ctrl-btn.active:hover { background: #9d98e488; }
+
+        /* Strength active = orange */
+        #strengthBtn.active {
+            background: var(--orange);
+            color: #fff;
+            border-color: #C86020;
+            box-shadow: 0 2px 10px var(--orange-glow);
+        }
+        #strengthBtn.active:hover { background: #F09040; }
+
+        /* Bend slider */
+        #bendSlider {
+            width: 100%; cursor: pointer; accent-color: var(--dark);
+            height: 4px; border-radius: 2px;
+        }
+
+        /* ─── Right panel ───────────────────────────────────────────── */
+        #stitch-picker {
+            position: absolute; top: 20px; right: 20px;
+            width: 172px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--r-panel);
+            padding: 16px 14px 18px;
+            z-index: 100;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: var(--shadow-panel);
+        }
+        #stitch-picker > h3 {
+            margin: 0 0 2px;
+            font-size: 0.67em; font-weight: 700; letter-spacing: 0.10em;
+            text-transform: uppercase; color: var(--text-2);
+        }
+
+        .stitch-btn {
+            width: 100%; padding: 9px 11px;
+            cursor: pointer; font-weight: 600; font-size: 0.84em;
+            border: 1px solid var(--border-2);
+            background: var(--bg-card);
+            color: var(--text-1);
+            border-radius: var(--r-btn);
+            text-align: left;
+            transition: background 0.13s, border-color 0.13s, box-shadow 0.13s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .stitch-btn::before {
+            content: '';
+            display: inline-block; width: 8px; height: 8px;
+            border-radius: 50%; background: var(--text-3);
+            flex-shrink: 0; transition: background 0.13s;
+        }
+        .stitch-btn[data-stitch="castOn"]::before  { background: #C4A000; }
+        .stitch-btn[data-stitch="knit"]::before    { background: #2878C8; }
+        .stitch-btn[data-stitch="purl"]::before    { background: #8060C8; }
+        .stitch-btn[data-stitch="Tuck"]::before    { background: #208850; }
+        .stitch-btn[data-stitch="Hinge"]::before   { background: #D06020; }
+        .stitch-btn[data-stitch="connector"]::before { background: var(--danger); }
+        .stitch-btn:not([data-stitch])::before { display: none; }
+
+        .stitch-btn:hover {
+            background: var(--bg-card-2);
+            border-color: rgba(0,0,0,0.16);
+        }
+        /* Active = yellow card, like the inventory "Orders" card */
+        .stitch-btn.active {
+            background: var(--accent);
+            color: var(--dark);
+            border-color: var(--accent-dk);
+            font-weight: 700;
+            box-shadow: 0 2px 10px var(--accent-glow);
+        }
+        .stitch-btn.active::before { background: var(--dark) !important; }
+        .stitch-btn.loading { opacity: 0.45; cursor: not-allowed; }
+
+        /* Clear = danger outline */
+        #clearBtn {
+            background: transparent;
+            border-color: rgba(217,64,64,0.30);
+            color: var(--danger);
+            text-align: center; justify-content: center;
+            font-weight: 600;
+        }
+        #clearBtn:hover {
+            background: rgba(217,64,64,0.07);
+            border-color: var(--danger);
+            box-shadow: 0 2px 8px rgba(217,64,64,0.12);
+        }
+        #clearBtn::before { display: none; }
+
+        /* Connector status */
+        #connectorStatus {
+            display: none; color: #2878C8;
+            font-size: 0.76em; text-align: center;
+            padding: 4px 6px;
+            background: rgba(40,120,200,0.10);
+            border-radius: 7px;
+        }
+
+        /* Colour row */
+        #colour-row {
+            display: flex; flex-direction: column; gap: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 10px 10px 9px;
+        }
+        #colour-row label {
+            font-size: 0.67em; font-weight: 700; letter-spacing: 0.10em;
+            text-transform: uppercase; color: var(--text-2);
+        }
+        #colourPicker {
+            width: 100%; height: 34px;
+            border: 1px solid var(--border-2);
+            border-radius: 7px; cursor: pointer; padding: 2px;
+            background: #fff;
+        }
+
+        /* Orientation / compass */
+        #rotation-controls {
+            display: flex; flex-direction: column; gap: 8px; align-items: center;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 10px;
+        }
+        #rotation-controls h3 {
+            margin: 0; font-size: 0.67em; font-weight: 700; letter-spacing: 0.10em;
+            text-transform: uppercase; color: var(--text-2);
+            align-self: flex-start;
+        }
+        .compass {
+            display: grid;
+            grid-template-columns: repeat(3, 32px);
+            grid-template-rows: repeat(3, 32px);
+            gap: 4px;
+        }
+        .dir-btn {
+            width: 32px; height: 32px;
+            cursor: pointer; font-size: 0.78em; font-weight: 700;
+            border: 1px solid var(--border-2);
+            background: var(--bg-card-2);
+            color: var(--text-2);
+            border-radius: 7px; text-align: center; line-height: 30px; padding: 0;
+            transition: background 0.13s, border-color 0.13s;
+        }
+        .dir-btn:hover {
+            background: #E0DDD2;
+            border-color: rgba(0,0,0,0.18);
+            color: var(--text-1);
+        }
+        .dir-btn.active {
+            background: var(--dark);
+            color: #FFFFFF;
+            border-color: var(--dark);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.20);
+        }
+        .compass-empty { width: 32px; height: 32px; }
+        .dir-btn.base { border-color: var(--accent-dk); color: var(--accent-dk); border-style: dashed; }
+
+        /* ─── Edge resize buttons (on grid edges) ───────────────────── */
+        .edge-btn-group {
+            position: absolute; pointer-events: all;
+            display: flex; gap: 3px;
+            transform: translate(-50%, -50%);
+            opacity: 0.20; transition: opacity 0.15s;
+        }
+        .edge-btn-group:hover { opacity: 1; }
+        .edge-vert  { flex-direction: column; }
+        .edge-horiz { flex-direction: row; }
+        .edge-btn {
+            width: 22px; height: 22px; border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.25);
+            background: rgba(255,255,255,0.92);
+            color: var(--text-1);
+            font-size: 14px; font-weight: bold;
+            line-height: 1; padding: 0; cursor: pointer;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .edge-btn:hover { background: var(--dark); color: #fff; border-color: var(--dark); }
+
+        /* ─── Section panel (vertical slider) ──────────────────────── */
+        #section-panel {
+            position: fixed; right: 210px; top: 60px; bottom: 60px;
+            width: 28px; display: none; flex-direction: column;
+            align-items: center; z-index: 150; pointer-events: none;
+        }
+        #section-slider-wrap {
+            position: relative; flex: 1; width: 8px;
+            background: rgba(0,0,0,0.12);
+            border-radius: 4px; pointer-events: all; cursor: pointer;
+        }
+        #section-range-fill {
+            position: absolute; left: 0; right: 0;
+            background: #63ccab);
+            border-radius: 4px; pointer-events: none;
+        }
+        .section-handle {
+            position: absolute; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--dark); border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.30);
+            cursor: ns-resize; pointer-events: all; touch-action: none;
+        }
+        .section-handle:hover { background: #333330; }
+        .section-label {
+            display: none; position: absolute; right: 26px; top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px; font-weight: bold; color: var(--dark);
+            white-space: nowrap; pointer-events: none;
+            background: rgba(255,255,255,0.92); padding: 1px 5px;
+            border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .section-handle.dragging .section-label { display: block; }
+
+        /* ─── Stitch tutorial popup ─────────────────────────────────── */
+        #stitch-tutorial-popup {
+            position: fixed; top: 50px; right: 210px; width: 220px;
+            background: rgba(255,255,252,0.92);
+            border-radius: 14px;
+            box-shadow: 0 6px 28px rgba(0,0,0,0.18);
+            display: none; flex-direction: column;
+            align-items: center; pointer-events: none;
+            z-index: 200;
+            backdrop-filter: blur(10px);
+            padding-bottom: 12px;
+            border: 1px solid var(--border);
+        }
+        #tutorial-canvas { border-radius: 12px 12px 0 0; display: block; }
+        #tutorial-label {
+            color: var(--text-2); font-size: 0.75em; font-weight: 600;
+            letter-spacing: 0.08em; text-transform: uppercase; margin-top: 10px;
+        }
+
+        /* ─── Help button + overlay ──────────────────────────────────── */
         #brand {
             position: fixed; bottom: 16px; left: 20px;
-            font-size: 0.78em; color: #aaa; pointer-events: none;
+            font-size: 0.75em; color: var(--text-3); pointer-events: none;
             font-style: italic; z-index: 50;
         }
         #helpBtn {
             position: fixed; bottom: 16px; right: 20px;
             width: 36px; height: 36px; border-radius: 50%;
-            background: #08f; color: #fff; font-size: 1.2em; font-weight: bold;
+            background: var(--dark); color: #fff;
+            font-size: 1.1em; font-weight: 700;
             border: none; cursor: pointer; z-index: 200;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.22);
         }
-        #helpBtn:hover { background: #06c; }
+        #helpBtn:hover { background: #333330; }
 
         #helpOverlay {
             display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.45); z-index: 300;
+            background: rgba(0,0,0,0.40); z-index: 300;
             align-items: center; justify-content: center;
         }
         #helpOverlay.open { display: flex; }
         #helpModal {
-            background: #fff; border-radius: 14px;
+            background: #FFFFFF; border-radius: 16px;
+            border: 1px solid var(--border-2);
             padding: 32px 36px; max-width: 520px; width: 90%;
             max-height: 85vh; overflow-y: auto;
-            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 12px 50px rgba(0,0,0,0.18);
             position: relative;
         }
-        #helpModal h2 { margin: 0 0 4px; font-size: 1.3em; color: #08f; }
-        #helpModal .subtitle { font-size: 0.82em; color: #aaa; margin-bottom: 20px; }
+        #helpModal h2 { margin: 0 0 4px; font-size: 1.25em; color: var(--dark); }
+        #helpModal .subtitle { font-size: 0.8em; color: var(--text-2); margin-bottom: 20px; }
         #helpModal h3 {
-            font-size: 0.8em; text-transform: uppercase;
-            letter-spacing: 0.07em; color: #888; margin: 18px 0 8px;
+            font-size: 0.75em; text-transform: uppercase;
+            letter-spacing: 0.08em; color: var(--text-2); margin: 18px 0 8px;
         }
-        #helpModal ul { margin: 0; padding: 0 0 0 18px; line-height: 1.8; font-size: 0.92em; color: #444; }
-        #helpModal li span { font-weight: bold; color: #222; }
+        #helpModal ul { margin: 0; padding: 0 0 0 18px; line-height: 1.9; font-size: 0.9em; color: var(--text-1); }
+        #helpModal li span { font-weight: 700; color: var(--dark); }
         #helpModal .tip {
             margin-top: 18px; padding: 12px 14px;
-            background: #f0f8ff; border-left: 3px solid #08f;
-            border-radius: 6px; font-size: 0.88em; color: #336; line-height: 1.6;
+            background: rgba(237,217,48,0.15); border-left: 3px solid var(--accent);
+            border-radius: 8px; font-size: 0.86em; color: var(--text-1); line-height: 1.7;
         }
         #closeHelp {
             position: absolute; top: 14px; right: 16px;
             background: none; border: none; font-size: 1.4em;
-            cursor: pointer; color: #aaa; line-height: 1;
+            cursor: pointer; color: var(--text-2); line-height: 1;
         }
-        #closeHelp:hover { color: #444; }
-
-        #stitch-picker {
-            position: absolute; top: 50px; right: 20px;
-            background: rgba(255, 255, 255, 0.9); padding: 15px;
-            border-radius: 8px; z-index: 100;
-            display: flex; flex-direction: column; gap: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            min-width: 130px;
-        }
-        #stitch-picker h3 {
-            margin: 0 0 4px 0; font-size: 0.85em;
-            text-transform: uppercase; letter-spacing: 0.05em;
-            color: #888; text-align: center;
-        }
-        .stitch-btn {
-            padding: 10px 12px; cursor: pointer; font-weight: bold;
-            border: 2px solid #ccc; background: #fff;
-            border-radius: 6px; text-align: center;
-            transition: background 0.15s, border-color 0.15s;
-        }
-        .stitch-btn:hover { background: #eef; border-color: #aaf; }
-        .stitch-btn.active {
-            background: #08f; color: #fff;
-            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
-        }
-        .stitch-btn.loading { opacity: 0.5; cursor: not-allowed; }
-
-        #colour-row {
-            display: flex; align-items: center; gap: 8px;
-            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
-        }
-        #colour-row label {
-            font-size: 0.85em; text-transform: uppercase;
-            letter-spacing: 0.05em; color: #888; white-space: nowrap;
-        }
-        #colourPicker {
-            width: 100%; height: 32px; border: 2px solid #ccc;
-            border-radius: 6px; cursor: pointer; padding: 1px;
-            background: none;
-        }
-
-        #rotation-controls {
-            display: flex; flex-direction: column; gap: 8px; align-items: center;
-            border-top: 1px solid #ddd; padding-top: 10px; margin-top: 2px;
-        }
-        #rotation-controls h3 {
-            margin: 0 0 4px 0; font-size: 0.85em;
-            text-transform: uppercase; letter-spacing: 0.05em;
-            color: #888; text-align: center;
-        }
-        .compass {
-            display: grid;
-            grid-template-columns: repeat(3, 36px);
-            grid-template-rows: repeat(3, 36px);
-            gap: 4px;
-        }
-        .dir-btn {
-            width: 36px; height: 36px;
-            cursor: pointer; font-size: 0.85em; font-weight: bold;
-            border: 2px solid #ccc; background: #fff;
-            border-radius: 6px; text-align: center; line-height: 32px; padding: 0;
-            transition: background 0.15s, border-color 0.15s;
-        }
-        .dir-btn:hover { background: #eef; border-color: #aaf; }
-        .dir-btn.active {
-            background: #08f; color: #fff;
-            border-color: #06c; box-shadow: 0 2px 6px rgba(0,136,255,0.4);
-        }
-        .compass-empty { width: 36px; height: 36px; }
-        .dir-btn.base {
-            border-color: #08f; color: #08f;
-            border-style: dashed;
-        }
-
-        .edge-btn-group {
-            position: absolute;
-            pointer-events: all;
-            display: flex;
-            gap: 3px;
-            transform: translate(-50%, -50%);
-            opacity: 0.15;
-            transition: opacity 0.15s;
-        }
-        .edge-btn-group:hover {
-            opacity: 1;
-        }
-        .edge-vert  { flex-direction: column; }
-        .edge-horiz { flex-direction: row; }
-        .edge-btn {
-            width: 22px; height: 22px;
-            border-radius: 50%;
-            border: 1px solid rgba(100,100,100,0.6);
-            background: rgba(255,255,255,0.85);
-            font-size: 14px; font-weight: bold;
-            line-height: 1; padding: 0;
-            cursor: pointer;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .edge-btn:hover { background: #08f; color: white; border-color: #08f; }
-
-        #section-panel {
-            position: fixed;
-            right: 190px;
-            top: 60px;
-            bottom: 60px;
-            width: 28px;
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            z-index: 150;
-            pointer-events: none;
-        }
-        #section-slider-wrap {
-            position: relative;
-            flex: 1;
-            width: 8px;
-            background: rgba(0,0,0,0.15);
-            border-radius: 4px;
-            pointer-events: all;
-            cursor: pointer;
-        }
-        #section-range-fill {
-            position: absolute;
-            left: 0; right: 0;
-            background: rgba(0,136,255,0.35);
-            border-radius: 4px;
-            pointer-events: none;
-        }
-        .section-handle {
-            position: absolute;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            background: #08f;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            cursor: ns-resize;
-            pointer-events: all;
-            touch-action: none;
-        }
-        .section-handle:hover { background: #06c; }
-        .section-label {
-            display: none;
-            position: absolute;
-            right: 26px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 10px;
-            font-weight: bold;
-            color: #08f;
-            white-space: nowrap;
-            pointer-events: none;
-            background: rgba(255,255,255,0.88);
-            padding: 1px 4px;
-            border-radius: 3px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-        }
-        .section-handle.dragging .section-label { display: block; }
-
-        #stitch-tutorial-popup {
-            position: fixed;
-            top: 50px;
-            right: 170px;
-            width: 220px;
-            background: rgba(15, 15, 25, 0.82);
-            border-radius: 12px;
-            box-shadow: 0 6px 24px rgba(0,0,0,0.5);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-            z-index: 200;
-            backdrop-filter: blur(8px);
-            padding-bottom: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        #tutorial-canvas { border-radius: 10px 10px 0 0; display: block; }
-        #tutorial-label {
-            color: #fff;
-            font-size: 0.8em;
-            font-weight: bold;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            margin-top: 8px;
-            opacity: 0.7;
-        }
+        #closeHelp:hover { color: var(--text-1); }
     </style>
 </head>
 <body>
@@ -326,42 +509,70 @@
     </div>
 
     <div id="controls">
-        
-        <div class="layer-display" style="margin-bottom: 15px">Current Layer: <span id="layerNum">0</span></div>
-        <button id="upLayer">↑ Next Layer</button>
-        <button id="downLayer">↓ Previous Layer</button>
-        <button id="resetLayer">Reset to Floor</button>
-        <button id="topDownBtn">Reset Top-Down View</button>
-        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
-        
-        <button id="abstractModeBtn">Abstract View</button>
-        <button id="sectionBtn">Section View</button>
-        <button id="strengthBtn"> Strength Simulation</button>
-        <label style="font-size:0.8em;color:#888;text-align:center;margin-top: 15px">Circular Knitting</label>
-        <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0" style="width:100%;cursor:pointer;">
 
+        <!-- Logo / branding -->
+        <div class="panel-logo">
+            <div style="margin-left: 5px;"">
+                <div class="panel-logo-text">DigiKnitting</div>
+                <div class="panel-logo-sub">Voxel Knitter</div>
+            </div>
+        </div>
 
-        <hr style="border:none;border-top:1px solid #ccc;margin:2px 0;">
-        <button id="saveBtn">💾 Save</button>
-        <button id="loadBtn">📂 Load</button>
-        <input type="file" id="loadFileInput" accept=".json" style="display:none;">
-        
-        
-        <button id="exportBtn">⬇ Export OBJ</button>
-        <button id="exportChartBtn">📄 Export Chart</button>
-       
-        
+        <!-- Layer navigation card -->
+        <div class="ctrl-card">
+            <div class="ctrl-card-label">Layer</div>
+            <div class="layer-display">
+                <span style="font-size:0.82em;color:var(--text-2);font-weight:500;">Current</span>
+                <span class="layer-badge"><span id="layerNum">0</span></span>
+            </div>
+            <div class="btn-row">
+                <button id="upLayer" class="ctrl-btn">↑ Up</button>
+                <button id="downLayer" class="ctrl-btn">↓ Down</button>
+            </div>
+            <button id="resetLayer" class="ctrl-btn">Reset to Floor</button>
+            <button id="topDownBtn" class="ctrl-btn blue"> Top-Down View</button>
+        </div>
+
+        <!-- View modes card -->
+        <div class="ctrl-card">
+            <div class="ctrl-card-label">View Modes</div>
+            <button id="abstractModeBtn" class="ctrl-btn">Abstract View</button>
+            <button id="sectionBtn" class="ctrl-btn">Section View</button>
+            <button id="strengthBtn" class="ctrl-btn">Strength Sim</button>
+        </div>
+
+        <!-- Circular knitting card -->
+        <div class="ctrl-card">
+            <div class="ctrl-card-label">Circular Knitting</div>
+            <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0">
+        </div>
+
+        <!-- Files card -->
+        <div class="ctrl-card">
+            <div class="ctrl-card-label">Files</div>
+            <div class="btn-row">
+                <button id="saveBtn" class="ctrl-btn primary">💾 Save</button>
+                <button id="loadBtn" class="ctrl-btn">📂 Load</button>
+            </div>
+            <input type="file" id="loadFileInput" accept=".json" style="display:none;">
+            <div class="btn-row">
+                <button id="exportBtn" class="ctrl-btn">⬇ OBJ</button>
+                <button id="exportChartBtn" class="ctrl-btn">📄 Chart</button>
+            </div>
+        </div>
+
     </div>
 
     <div id="stitch-picker">
-        <h3>Stitch</h3>
-        <button class="stitch-btn loading"        data-stitch="castOn" data-tutorial="__sweep__">Cast On</button>
-        <button class="stitch-btn active loading" data-stitch="knit"    data-tutorial="__knit__">Knit</button>
-        <button class="stitch-btn loading"        data-stitch="purl"   data-tutorial="__purl__">Purl</button>
-        <button class="stitch-btn loading"        data-stitch="Tuck"   data-tutorial="__tuck__">Tuck</button>
-        <button class="stitch-btn loading"        data-stitch="Hinge"   data-tutorial="__hinge__">Hinge</button>
-        <button class="stitch-btn" data-stitch="connector">Connector</button>
-        <div id="connectorStatus" style="display:none;color:#08f;font-size:0.8em;text-align:center;padding:4px 2px;"></div>
+        <h3>Stitch Type</h3>
+
+        <button class="stitch-btn active loading" data-stitch="castOn"    data-tutorial="__sweep__">Cast On</button>
+        <button class="stitch-btn loading"         data-stitch="knit"      data-tutorial="__knit__">Knit</button>
+        <button class="stitch-btn loading"         data-stitch="purl"      data-tutorial="__purl__">Purl</button>
+        <button class="stitch-btn loading"         data-stitch="Tuck"      data-tutorial="__tuck__">Tuck</button>
+        <button class="stitch-btn loading"         data-stitch="Hinge"     data-tutorial="__hinge__">Hinge</button>
+        <button class="stitch-btn"                 data-stitch="connector">Connector</button>
+        <div id="connectorStatus"></div>
 
         <div id="colour-row">
             <label>Colour</label>
@@ -382,6 +593,8 @@
                 <div class="compass-empty"></div>
             </div>
         </div>
+
+        <button id="clearBtn" class="stitch-btn">🗑 Clear All</button>
     </div>
 
     <script type="importmap">
@@ -407,7 +620,7 @@
         let rollOverMesh, rollOverMaterial;
         let gridHelper, bentGridHelper;
         const modelPrototypes = {};
-        let activeStitch = 'knit';
+        let activeStitch = 'castOn';
         let placementRotationStep = 0; // 0, 1, 2, 3 → 0°, 90°, 180°, 270°
         let isLeftDown = false;
         let isRightDown = false;
@@ -432,6 +645,78 @@
         let abstractMode = false;
         const abstractTextures = {};
         let connectorMode = false;
+
+        // --- Next Stitch Guide ---
+        let _nextGuideTex     = null;
+        const _nextGuidePool  = [];   // reusable sprite pool
+
+        function initNextStitchGuide() {
+            _nextGuideTex = new THREE.TextureLoader().load('NextStitch.png');
+        }
+
+        function _getGuideSprite() {
+            // Reuse a hidden sprite from the pool, or create a new one
+            let s = _nextGuidePool.find(sp => !sp.visible);
+            if (!s) {
+                const mat = new THREE.SpriteMaterial({ map: _nextGuideTex, transparent: true, depthTest: false });
+                s = new THREE.Sprite(mat);
+                s.scale.set(GRID_STEP * 0.85, GRID_STEP * 0.85, 1);
+                s.renderOrder = 10;
+                scene.add(s);
+                _nextGuidePool.push(s);
+            }
+            return s;
+        }
+
+        function updateNextStitchGuide() {
+            if (!_nextGuideTex) return;
+            _nextGuidePool.forEach(s => s.visible = false);
+
+            const FRAC = 0.85;
+
+            // A target cell is "filled" if a stitch occupies it on the same layer
+            // OR one layer directly above (user is building the next layer on top).
+            function targetFilled(tx, ty, tz) {
+                const sameKey  = getMatrixKey(new THREE.Vector3(tx, ty, tz));
+                const aboveKey = getMatrixKey(new THREE.Vector3(tx, ty + GRID_STEP, tz));
+                return !!(voxelMatrix[sameKey] || voxelMatrix[aboveKey]);
+            }
+
+            const usedPosKeys = new Set();
+
+            Object.values(voxelMatrix).forEach(model => {
+                const fp   = model.userData.flatPos;
+                const y    = fp.y;
+                const step = model.userData.effectiveStep ?? 0;
+                const back    = getBackOffset(step);
+                const forward = back.clone().negate();
+
+                // ── Forward indicator ─────────────────────────────────────────
+                if (!targetFilled(fp.x + forward.x, y, fp.z + forward.z)) {
+                    const indPos = new THREE.Vector3(fp.x + forward.x * FRAC, y, fp.z + forward.z * FRAC);
+                    const posKey = `${Math.round(indPos.x)},${y},${Math.round(indPos.z)}`;
+                    if (!usedPosKeys.has(posKey)) {
+                        usedPosKeys.add(posKey);
+                        const s = _getGuideSprite();
+                        s.position.copy(indPos);
+                        s.visible = true;
+                    }
+                }
+
+                // ── Back indicator (red stitch — missing support) ─────────────
+                if (model.userData.stitchType === 'castOn') return;
+                if (!targetFilled(fp.x + back.x, y, fp.z + back.z) && !isCoveredBy3DPurl(fp)) {
+                    const indPos = new THREE.Vector3(fp.x + back.x * FRAC, y, fp.z + back.z * FRAC);
+                    const posKey = `${Math.round(indPos.x)},${y},${Math.round(indPos.z)}`;
+                    if (!usedPosKeys.has(posKey)) {
+                        usedPosKeys.add(posKey);
+                        const s = _getGuideSprite();
+                        s.position.copy(indPos);
+                        s.visible = true;
+                    }
+                }
+            });
+        }
         let connectorStartModel = null;
         let connectorHoverModel = null;
         const connectors = [];
@@ -462,7 +747,8 @@
                 if (model.userData.abstractSprite) model.userData.abstractSprite.visible  = abstractMode;
             });
             const btn = document.getElementById('abstractModeBtn');
-            btn.textContent = abstractMode ? 'Geometry View' : 'Abstract View';
+            btn.textContent = abstractMode ? ' Geometry View' : 'Abstract View';
+            btn.classList.toggle('active', abstractMode);
         }
 
         // ── Tutorial popup mini-renderer ─────────────────────────────────────
@@ -1222,25 +1508,42 @@
             }
         }
 
+        function _applyFresnelShader(shader) {
+            shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
+            shader.uniforms.uFresnelPower = { value: 2.0 };
+            shader.uniforms.uFresnelStr   = { value: 0.6 };
+            shader.fragmentShader = `
+                uniform vec3  uFresnelColor;
+                uniform float uFresnelPower;
+                uniform float uFresnelStr;
+            ` + shader.fragmentShader;
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <output_fragment>',
+                `#include <output_fragment>
+                float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
+                gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
+            );
+        }
+
         function makeFresnelMat(color) {
             const mat = new THREE.MeshStandardMaterial({ color: color.clone(), roughness: 0.75, metalness: 0.15 });
-            mat.onBeforeCompile = (shader) => {
-                shader.uniforms.uFresnelColor = { value: new THREE.Color(0xffffff) };
-                shader.uniforms.uFresnelPower = { value: 2.0 };
-                shader.uniforms.uFresnelStr   = { value: 0.6 };
-                shader.fragmentShader = `
-                    uniform vec3  uFresnelColor;
-                    uniform float uFresnelPower;
-                    uniform float uFresnelStr;
-                ` + shader.fragmentShader;
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <output_fragment>',
-                    `#include <output_fragment>
-                    float fresnel = pow(1.0 - max(dot(normal, normalize(vViewPosition)), 0.0), uFresnelPower) * uFresnelStr;
-                    gl_FragColor.rgb = mix(gl_FragColor.rgb, uFresnelColor, fresnel);`
-                );
-            };
+            mat.onBeforeCompile = _applyFresnelShader;
+            // Shared cache key → Three.js compiles the shader ONCE and reuses the
+            // GPU program for every Fresnel material, eliminating the first-render glitch.
+            mat.customProgramCacheKey = () => 'fresnel';
             return mat;
+        }
+
+        function _prewarmFresnelShader() {
+            // Render one invisible Fresnel mesh so the shader is compiled before
+            // the user places any stitches, preventing the first-use flash.
+            const geo  = new THREE.BoxGeometry(1, 1, 1);
+            const mat  = makeFresnelMat(new THREE.Color(0xffffff));
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.visible = false;
+            scene.add(mesh);
+            // Remove after one frame so it doesn't linger
+            requestAnimationFrame(() => { scene.remove(mesh); geo.dispose(); mat.dispose(); });
         }
 
         function setModelColor(model, color) {
@@ -1355,14 +1658,31 @@
 
                 const combined = singleLayer ? Math.min(afterPurl, 0.08) : afterPurl;
 
+                model.userData._strengthScore = combined;   // store for connector use
                 const col = strengthPaletteColor(combined);
                 setModelColor(model, col);
+            });
+
+            // Colour connector sweeps: average the strength scores of their two endpoints
+            connectors.forEach(mesh => {
+                const mA = mesh.userData.connectorStart;
+                const mB = mesh.userData.connectorEnd;
+                const sA = mA?._strengthScore ?? mA?.userData?._strengthScore ?? 0;
+                const sB = mB?._strengthScore ?? mB?.userData?._strengthScore ?? 0;
+                const avg = (sA + sB) / 2;
+                if (mesh.material) mesh.material.color.copy(strengthPaletteColor(avg));
             });
         }
 
         function clearStrengthTest() {
             Object.values(voxelMatrix).forEach(model => {
+                model.userData._strengthScore = undefined;
                 setModelColor(model, model.userData.originalColor || activeColor);
+            });
+            // Reset connector colours back to their start-stitch original colour
+            connectors.forEach(mesh => {
+                const origColor = mesh.userData.connectorStart?.userData.originalColor;
+                if (origColor && mesh.material) mesh.material.color.copy(origColor);
             });
         }
 
@@ -1386,6 +1706,34 @@
             const hasBack = voxelMatrix[getMatrixKey(backPos)] !== undefined;
             const supported = hasBack || isCoveredBy3DPurl(flat);
             setModelColor(model, supported ? model.userData.originalColor : RED);
+        }
+
+        // Highlight Cast On stitches that are placed directly in the forward path
+        // of another Cast On — that is a placement mistake.
+        const CAST_ON_CONFLICT_RED = new THREE.Color(0xff2020);
+        function validateCastOnConflicts() {
+            if (strengthTestActive) return; // don't override strength colours
+            // First clear all previous conflict flags and restore colours
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.stitchType !== 'castOn') return;
+                if (model.userData._castOnConflict) {
+                    model.userData._castOnConflict = false;
+                    setModelColor(model, model.userData.originalColor);
+                }
+            });
+            // Now detect conflicts: if Cast On A's forward position equals Cast On B's position,
+            // B is a mistake → colour it red.
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.stitchType !== 'castOn') return;
+                const fp   = model.userData.flatPos;
+                const back = getBackOffset(model.userData.effectiveStep);
+                const neighborKey = getMatrixKey(fp.clone().add(back));
+                const neighbor    = voxelMatrix[neighborKey];
+                if (neighbor && neighbor.userData.stitchType === 'castOn') {
+                    neighbor.userData._castOnConflict = true;
+                    setModelColor(neighbor, CAST_ON_CONFLICT_RED);
+                }
+            });
         }
 
         function upgradePurl(model) {
@@ -1640,6 +1988,39 @@
             return mesh;
         }
 
+        function clearAllStitches() {
+            connectors.slice().forEach(m => removeConnector(m, true));
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.supportCube) scene.remove(model.userData.supportCube);
+                if (model.userData.is3DPurl)    downgradePurl(model);
+                if (model.userData.is3DCastOn)  downgradeCastOn(model);
+                if (model.userData.abstractSprite) {
+                    scene.remove(model.userData.abstractSprite);
+                    model.userData.abstractSprite.material.dispose();
+                }
+                model.traverse(child => {
+                    if (child.isMesh) {
+                        const i = objects.indexOf(child);
+                        if (i !== -1) objects.splice(i, 1);
+                        meshToModel.delete(child);
+                    }
+                });
+                scene.remove(model);
+            });
+            for (const k in voxelMatrix) delete voxelMatrix[k];
+            undoStack.length = 0;
+            redoStack.length = 0;
+            isDirty = false;
+            updateNextStitchGuide();
+            validateCastOnConflicts();
+            if (sectionEnabled) updateSectionUI();
+            // Reset active stitch back to Cast On
+            activeStitch = 'castOn';
+            document.querySelectorAll('.stitch-btn').forEach(b => b.classList.remove('active'));
+            const castOnBtn = document.querySelector('.stitch-btn[data-stitch="castOn"]');
+            if (castOnBtn) castOnBtn.classList.add('active');
+        }
+
         function removeConnector(mesh, skipHistory = false) {
             // Free the used sides on both endpoint stitches.
             const mA = mesh.userData.connectorStart;
@@ -1838,8 +2219,9 @@
         loadAbstractTextures();
         initTutorialRenderer();
 
-
         init();
+        _prewarmFresnelShader();
+        initNextStitchGuide();
         setupUI();
         animate();
 
@@ -1970,6 +2352,7 @@
                 if (window._updateCompass) window._updateCompass();
                 if (bendFactor > 0) updateBentGrid();
                 if (sectionEnabled) updateSectionUI();
+                updateNextStitchGuide();
             }
 
             const stitchLabels = { knit: 'Knit', castOn: 'Cast On', purl: 'Purl' };
@@ -2068,6 +2451,11 @@
 
             document.getElementById('abstractModeBtn').addEventListener('click', toggleAbstractMode);
             document.getElementById('exportChartBtn').addEventListener('click', exportAbstractChart);
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                if (!confirm('Clear all stitches?')) return;
+                clearAllStitches();
+            });
+
 
             document.getElementById('saveBtn').addEventListener('click', () => {
                 const stitches = Object.values(voxelMatrix).map(model => ({
@@ -2183,6 +2571,8 @@
                     });
 
                     isDirty = true;
+                    updateNextStitchGuide();
+                    validateCastOnConflicts();
                 };
                 reader.readAsText(file);
             });
@@ -2283,6 +2673,8 @@
             refreshCastOnVariantBelow(model.userData.flatPos);
             if (model.userData.stitchType === 'castOn') refreshCastOnVariant(model);
             if (sectionEnabled) updateSectionUI();
+            updateNextStitchGuide();
+            validateCastOnConflicts();
         }
 
         function deleteVoxel(intersect) {
@@ -2331,6 +2723,8 @@
             revalidateNeighbors(deletedPos);
             refreshPurlVariantBelow(deletedPos);
             refreshCastOnVariantBelow(deletedPos);
+            updateNextStitchGuide();
+            validateCastOnConflicts();
         }
 
         function _attachModel(model) {
@@ -2380,6 +2774,7 @@
             if (model.userData.stitchType === 'purl')   refreshPurlVariant(model);
             if (model.userData.stitchType === 'castOn') refreshCastOnVariant(model);
             if (sectionEnabled) applySectionView();
+            validateCastOnConflicts();
             isDirty = true;
         }
 
@@ -2419,6 +2814,7 @@
             refreshPurlVariantBelow(deletedPos);
             refreshCastOnVariantBelow(deletedPos);
             if (sectionEnabled) applySectionView();
+            validateCastOnConflicts();
             isDirty = true;
         }
 
@@ -2627,12 +3023,18 @@
         function getLayerColor(baseColor, layer) {
             const hsl = { h: 0, s: 0, l: 0 };
             baseColor.getHSL(hsl);
-            // Rotate hue 30° per layer, then remap into safe range 20°–340° to avoid red (error colour)
-            const rawH = (hsl.h + layer * (30 / 360)) % 1;
-            const safeStart = 20 / 360;
+            // Golden-ratio hue shift (≈137.5° per layer) — maximally separates every
+            // consecutive layer's colour with no early repetition.
+            const GOLDEN  = 137.508 / 360;
+            const rawH    = (hsl.h + layer * GOLDEN) % 1;
+            // Keep away from pure red (used for error/unsupported) → safe range 20°–340°
+            const safeStart = 20  / 360;
             const safeSpan  = 320 / 360;
             const h = safeStart + rawH * safeSpan;
-            return new THREE.Color().setHSL(h, Math.max(hsl.s, 0.35), Math.max(hsl.l, 0.4));
+            // Alternate lightness between even/odd layers for extra contrast
+            const lBase = Math.max(hsl.l, 0.38);
+            const l     = layer % 2 === 0 ? lBase : Math.min(lBase + 0.22, 0.78);
+            return new THREE.Color().setHSL(h, Math.max(hsl.s, 0.55), l);
         }
 
         function getSectionLayerBounds() {
@@ -2714,12 +3116,50 @@
             });
         }
 
+        function enterSectionView() {
+            // Replace 3D variants with their flat counterparts (visibility only, no data lost)
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.is3DPurl && model.userData._3dPurlGroup) {
+                    model.userData._3dPurlGroup.visible = false;
+                    model.traverse(c => { if (c.isMesh) c.visible = true; });
+                }
+                if (model.userData.is3DCastOn && model.userData._3dCastOnGroup) {
+                    model.userData._3dCastOnGroup.visible = false;
+                    model.traverse(c => { if (c.isMesh) c.visible = true; });
+                }
+            });
+            // Hide connector sweeps
+            connectors.forEach(mesh => { mesh.visible = false; });
+        }
+
+        function exitSectionView() {
+            // Restore 3D variants and hide their flat placeholders again
+            Object.values(voxelMatrix).forEach(model => {
+                if (model.userData.is3DPurl && model.userData._3dPurlGroup) {
+                    model.userData._3dPurlGroup.visible = !abstractMode;
+                    model.traverse(c => { if (c.isMesh) c.visible = false; });
+                }
+                if (model.userData.is3DCastOn && model.userData._3dCastOnGroup) {
+                    model.userData._3dCastOnGroup.visible = !abstractMode;
+                    model.traverse(c => { if (c.isMesh) c.visible = false; });
+                }
+            });
+            // Restore connector sweeps
+            connectors.forEach(mesh => { mesh.visible = !abstractMode; });
+        }
+
         function initSectionSlider() {
             document.getElementById('sectionBtn').addEventListener('click', () => {
                 sectionEnabled = !sectionEnabled;
                 document.getElementById('section-panel').style.display = sectionEnabled ? 'flex' : 'none';
-                document.getElementById('sectionBtn').textContent = sectionEnabled ? 'Section On' : 'Section View';
-                if (sectionEnabled) updateSectionUI();
+                document.getElementById('sectionBtn').textContent = sectionEnabled ? ' Section On' : ' Section View';
+                document.getElementById('sectionBtn').classList.toggle('active', sectionEnabled);
+                if (sectionEnabled) {
+                    enterSectionView();
+                    updateSectionUI();
+                } else {
+                    exitSectionView();
+                }
                 applySectionView();
             });
 
