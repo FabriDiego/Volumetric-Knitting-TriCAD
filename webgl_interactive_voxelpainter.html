@@ -1381,6 +1381,17 @@
             }
         }
 
+        // Shared cylindrical-bend transform for a single flat point.
+        function flatPosToBent(fp) {
+            if (bendFactor === 0) return fp.clone();
+            const totalAngle = 2 * Math.PI * bendFactor;
+            const centerX    = (gridMinX + gridMaxX) / 2;
+            const radius     = GRID_WIDTH_X / totalAngle;
+            const angle      = ((fp.x - centerX) / GRID_WIDTH_X) * totalAngle;
+            const r          = radius + fp.y;
+            return new THREE.Vector3(Math.sin(angle) * r, -radius + Math.cos(angle) * r, fp.z);
+        }
+
         function applyBendToModel(model) {
             const flat = model.userData.flatPos;
             if (!flat) return;
@@ -1394,7 +1405,6 @@
             const totalAngle = 2 * Math.PI * bendFactor;
             const centerX = (gridMinX + gridMaxX) / 2;
             const radius = GRID_WIDTH_X / totalAngle;
-            // X wraps around a fixed axis at (0, -radius, z); each layer adds to the radius
             const angle = ((flat.x - centerX) / GRID_WIDTH_X) * totalAngle;
             const r = radius + flat.y;
             model.position.set(
@@ -1403,14 +1413,36 @@
                 flat.z
             );
             if (model.userData.abstractSprite) model.userData.abstractSprite.position.copy(model.position);
-            // Tilt the stitch to stay tangent to the cylinder surface (rotate around Z)
             const qBend = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -angle);
             model.quaternion.copy(qBend.multiply((model.userData.baseQuat || new THREE.Quaternion()).clone()));
             _syncVariant(model);
         }
 
+        // Rebuild a connector's TubeGeometry so it follows the cylindrical bend.
+        // The flat curve (built from flatPos-based connection points) is sampled and
+        // each sample is pushed through the same cylindrical transform as the stitches.
+        function applyBendToConnector(mesh) {
+            const flatCurve = mesh.userData.flatCurve;
+            if (!flatCurve) return;
+            let geo;
+            if (bendFactor === 0) {
+                geo = new THREE.TubeGeometry(flatCurve, 24, 5, 8, false);
+            } else {
+                const SEGS = 64;
+                const pts  = [];
+                for (let i = 0; i <= SEGS; i++) {
+                    pts.push(flatPosToBent(flatCurve.getPoint(i / SEGS)));
+                }
+                geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, 5, 8, false);
+            }
+            geo.computeVertexNormals();
+            mesh.geometry.dispose();
+            mesh.geometry = geo;
+        }
+
         function updateAllBends() {
             Object.values(voxelMatrix).forEach(applyBendToModel);
+            connectors.forEach(applyBendToConnector);
         }
 
         function makeFlatGridHelper() {
@@ -1973,7 +2005,10 @@
             mesh.userData.connectorEnd   = modelB;
             mesh.userData.connectorSideA = sideA;
             mesh.userData.connectorSideB = sideB;
+            mesh.userData.flatCurve      = curve;   // stored for bend re-computation
             mesh.visible = !abstractMode;
+            // If bend is already active, warp the connector geometry immediately
+            if (bendFactor > 0) applyBendToConnector(mesh);
             // Mark the used sides on each stitch model.
             if (!modelA.userData.connectorSides) modelA.userData.connectorSides = new Set();
             if (!modelB.userData.connectorSides) modelB.userData.connectorSides = new Set();
