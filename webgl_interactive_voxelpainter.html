@@ -156,6 +156,12 @@
         }
         .ctrl-btn.active:hover { background: #9d98e488; }
 
+        /* Undo / Redo — larger tap targets for touch */
+        .undo-redo-btn {
+            padding: 11px 10px;
+            font-size: 0.88em;
+        }
+
         /* Strength active = orange */
         #strengthBtn.active {
             background: var(--orange);
@@ -533,6 +539,15 @@
             <button id="topDownBtn" class="ctrl-btn blue"> Top-Down View</button>
         </div>
 
+         <!-- Undo / Redo card -->
+        <div class="ctrl-card">
+            <div class="ctrl-card-label">History</div>
+            <div class="btn-row">
+                <button id="undoBtn" class="ctrl-btn undo-redo-btn" title="Undo (Ctrl+Z)">↩ Undo</button>
+                <button id="redoBtn" class="ctrl-btn undo-redo-btn" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+            </div>
+        </div>
+
         <!-- View modes card -->
         <div class="ctrl-card">
             <div class="ctrl-card-label">View Modes</div>
@@ -546,6 +561,8 @@
             <div class="ctrl-card-label">Circular Knitting</div>
             <input type="range" id="bendSlider" min="0" max="1" step="0.01" value="0">
         </div>
+
+       
 
         <!-- Files card -->
         <div class="ctrl-card">
@@ -2490,6 +2507,9 @@
                 if (!confirm('Clear all stitches?')) return;
                 clearAllStitches();
             });
+
+            document.getElementById('undoBtn').addEventListener('click', () => undoAction());
+            document.getElementById('redoBtn').addEventListener('click', () => redoAction());
 
 
             document.getElementById('saveBtn').addEventListener('click', () => {
