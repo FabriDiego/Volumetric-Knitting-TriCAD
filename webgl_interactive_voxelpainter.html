@@ -2601,7 +2601,14 @@
                         model.userData.baseQuat = model.quaternion.clone();
                         const key = getMatrixKey(model.position);
                         model.userData.matrixKey = key;
-                        setModelColor(model, model.userData.originalColor);
+                        model.traverse(child => {
+                            if (child.isMesh) {
+                                if (!child.geometry.attributes.normal) child.geometry.computeVertexNormals();
+                                child.material = makeFresnelMat(model.userData.originalColor);
+                                objects.push(child);
+                                meshToModel.set(child, model);
+                            }
+                        });
                         voxelMatrix[key] = model;
                         scene.add(model);
                         model.visible = !abstractMode;
@@ -2633,23 +2640,138 @@
             });
 
             document.getElementById('exportBtn').addEventListener('click', () => {
-                const keys = Object.keys(voxelMatrix);
-                if (keys.length === 0) {
+                if (Object.keys(voxelMatrix).length === 0 && connectors.length === 0) {
                     alert('Nothing to export — place some stitches first!');
                     return;
                 }
-                const exportGroup = new THREE.Group();
-                keys.forEach(k => exportGroup.add(voxelMatrix[k].clone()));
 
-                const exporter = new OBJExporter();
-                const result = exporter.parse(exportGroup);
-                const blob = new Blob([result], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'knit_model.obj';
-                a.click();
-                URL.revokeObjectURL(url);
+                // ── 1. Collect world-space geometry, tagged by group metadata ──────────
+                // Each entry: { geo, layer, stitchType, colorHex, color }
+                const entries = [];
+
+                function getLayer(model) {
+                    return Math.round((model.userData.flatPos.y - 25) / GRID_STEP);
+                }
+
+                function harvest(src, layer, stitchType, color) {
+                    const prev = src.visible;
+                    src.visible = true;                        // temporarily show (abstract/section)
+                    src.updateWorldMatrix(true, true);
+                    src.traverse(child => {
+                        if (!child.isMesh || !child.visible) return; // skip hidden flat meshes
+                        const geo = child.geometry.clone();
+                        geo.applyMatrix4(child.matrixWorld);   // bake world transform
+                        if (!geo.attributes.normal) geo.computeVertexNormals();
+                        entries.push({ geo, layer, stitchType,
+                            colorHex: color.getHexString(), color: color.clone() });
+                    });
+                    src.visible = prev;
+                }
+
+                Object.values(voxelMatrix).forEach(model => {
+                    const layer = getLayer(model);
+                    const type  = model.userData.stitchType || 'knit';
+                    const color = (model.userData.originalColor ?? new THREE.Color(0xaaaaaa)).clone();
+                    if      (model.userData.is3DPurl   && model.userData._3dPurlGroup)
+                        harvest(model.userData._3dPurlGroup,   layer, type, color);
+                    else if (model.userData.is3DCastOn && model.userData._3dCastOnGroup)
+                        harvest(model.userData._3dCastOnGroup, layer, type, color);
+                    else
+                        harvest(model, layer, type, color);
+                });
+
+                connectors.forEach(mesh => {
+                    const mA    = mesh.userData.connectorStart;
+                    const layer = mA ? getLayer(mA) : 0;
+                    const color = (mA?.userData.originalColor ?? new THREE.Color(0x888888)).clone();
+                    const prev  = mesh.visible;
+                    mesh.visible = true;
+                    mesh.updateWorldMatrix(true, true);
+                    const geo = mesh.geometry.clone();
+                    geo.applyMatrix4(mesh.matrixWorld);
+                    if (!geo.attributes.normal) geo.computeVertexNormals();
+                    entries.push({ geo, layer, stitchType: 'connector',
+                        colorHex: color.getHexString(), color });
+                    mesh.visible = prev;
+                });
+
+                // ── 2. Group by (layer, stitchType, colorHex) ─────────────────────────
+                const groupMap = new Map(); // groupKey → entry[]
+                const colorMap = new Map(); // colorHex → THREE.Color
+
+                entries.forEach(e => {
+                    const key = `layer_${e.layer}_${e.stitchType}_${e.colorHex}`;
+                    if (!groupMap.has(key)) groupMap.set(key, []);
+                    groupMap.get(key).push(e);
+                    colorMap.set(e.colorHex, e.color);
+                });
+
+                // ── 3. Build MTL string ───────────────────────────────────────────────
+                let mtl = '# DigiKnit material library\n\n';
+                colorMap.forEach((col, hex) => {
+                    mtl += `newmtl mat_${hex}\n`;
+                    mtl += `Kd ${col.r.toFixed(5)} ${col.g.toFixed(5)} ${col.b.toFixed(5)}\n`;
+                    mtl += `Ka 0.10000 0.10000 0.10000\n`;
+                    mtl += `Ks 0.05000 0.05000 0.05000\n`;
+                    mtl += `Ns 10.0\nd 1.0\n\n`;
+                });
+
+                // ── 4. Build OBJ string (custom writer — no OBJExporter) ──────────────
+                const MTL_FILE = 'knit_model.mtl';
+                let obj = `# DigiKnit export\n# Groups: layer / stitch type / colour\nmtllib ${MTL_FILE}\n\n`;
+
+                let vBase  = 1;   // OBJ indices are 1-based and global across the file
+                let vnBase = 1;
+
+                [...groupMap.keys()].sort().forEach(key => {
+                    const group = groupMap.get(key);
+                    obj += `g ${key}\n`;
+                    obj += `usemtl mat_${group[0].colorHex}\n`;
+
+                    group.forEach(({ geo }) => {
+                        const pos  = geo.attributes.position;
+                        const norm = geo.attributes.normal;
+                        const idx  = geo.index;
+
+                        for (let i = 0; i < pos.count; i++)
+                            obj += `v ${pos.getX(i).toFixed(5)} ${pos.getY(i).toFixed(5)} ${pos.getZ(i).toFixed(5)}\n`;
+
+                        if (norm)
+                            for (let i = 0; i < norm.count; i++)
+                                obj += `vn ${norm.getX(i).toFixed(5)} ${norm.getY(i).toFixed(5)} ${norm.getZ(i).toFixed(5)}\n`;
+
+                        const faceCount = idx ? idx.count : pos.count;
+                        for (let i = 0; i < faceCount; i += 3) {
+                            const ia = (idx ? idx.getX(i)   : i)   + vBase;
+                            const ib = (idx ? idx.getX(i+1) : i+1) + vBase;
+                            const ic = (idx ? idx.getX(i+2) : i+2) + vBase;
+                            if (norm) {
+                                const na = (idx ? idx.getX(i)   : i)   + vnBase;
+                                const nb = (idx ? idx.getX(i+1) : i+1) + vnBase;
+                                const nc = (idx ? idx.getX(i+2) : i+2) + vnBase;
+                                obj += `f ${ia}//${na} ${ib}//${nb} ${ic}//${nc}\n`;
+                            } else {
+                                obj += `f ${ia} ${ib} ${ic}\n`;
+                            }
+                        }
+
+                        vBase  += pos.count;
+                        if (norm) vnBase += norm.count;
+                        geo.dispose();
+                    });
+                    obj += '\n';
+                });
+
+                // ── 5. Download OBJ then MTL (small delay avoids browser blocking) ─────
+                function triggerDownload(text, filename) {
+                    const blob = new Blob([text], { type: 'text/plain' });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href = url; a.download = filename; a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                }
+                triggerDownload(obj, 'knit_model.obj');
+                setTimeout(() => triggerDownload(mtl, 'knit_model.mtl'), 400);
             });
         }
 
