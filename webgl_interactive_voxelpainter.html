@@ -2096,12 +2096,19 @@
             //   Cast-on:  2  + (1 if any "above" stitch exists in its reach)
             //   Regular:  number of stitches stacked at the same (X, Z) column
 
-            // First build raw column counts for regular stitches
-            const columnHeight = new Map(); // key "x,z" → raw count
+            // First build raw column counts and 3D-connection flags per (X,Z) column.
+            // A column is "3D-connected" when it contains at least one 3D purl or 3D cast-on —
+            // these are the only stitches that physically interlock consecutive layers.
+            // Columns without a 3D stitch cannot earn green regardless of height or connectivity.
+            const columnHeight   = new Map(); // key "x,z" → raw count
+            const column3DLinked = new Map(); // key "x,z" → boolean
             models.forEach(model => {
-                const pos = model.userData.flatPos || model.position;
+                const pos    = model.userData.flatPos || model.position;
                 const colKey = `${Math.round(pos.x)},${Math.round(pos.z)}`;
                 columnHeight.set(colKey, (columnHeight.get(colKey) || 0) + 1);
+                if (model.userData.is3DPurl || model.userData.is3DCastOn) {
+                    column3DLinked.set(colKey, true);
+                }
             });
 
             // Per-stitch effective height
@@ -2163,12 +2170,17 @@
                 const afterPurl = base * purlMultiplier;
 
                 // ── Column-height cap ────────────────────────────────────────────
-                // Effective height < 3 → orange; ≥ 3 → uncapped (can reach green).
-                // Cast-ons count as 2 blocks; with 1 stitch above they reach 3.
-                const effH = effectiveHeight.get(model) || 1;
+                // Effective height < 3 → orange; ≥ 3 → can reach amber at most.
+                // Green requires ≥ 3 layers AND a 3D stitch (3D purl or 3D cast-on)
+                // physically interlocking the layers — flat stitches alone cannot
+                // achieve structural rigidity across layers.
+                const effH   = effectiveHeight.get(model) || 1;
+                const colKey = `${Math.round(pos.x)},${Math.round(pos.z)}`;
+                const has3D  = column3DLinked.get(colKey) || false;
                 let combined = afterPurl;
                 if      (effH === 1) combined = Math.min(combined, 0.08);
                 else if (effH === 2) combined = Math.min(combined, 0.28);
+                else if (!has3D)     combined = Math.min(combined, 0.14); // 3+ unconnected layers → worse than 2, deep orange
 
                 baseScores.set(model, combined);
                 model.userData._strengthScore = combined;
