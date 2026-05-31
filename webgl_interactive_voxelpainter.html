@@ -171,6 +171,82 @@
         }
         #strengthBtn.active:hover { background: #F09040; }
 
+        /* ── Stiffness legend overlay ───────────────────────────────────────── */
+        #stiffnessLegend {
+            display: none;
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: rgba(255,255,255,0.93);
+            border: 1px solid var(--border-2);
+            border-radius: var(--r-card);
+            box-shadow: var(--shadow-panel);
+            padding: 14px 18px 16px;
+            min-width: 210px;
+            z-index: 200;
+            font-family: 'Inter', sans-serif;
+            backdrop-filter: blur(6px);
+        }
+        #stiffnessLegend.visible { display: block; }
+        .stiff-legend-title {
+            font-size: 0.72em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-2);
+            margin-bottom: 10px;
+        }
+        .stiff-legend-heading {
+            font-size: 1em;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 12px;
+            line-height: 1.25;
+        }
+        .stiff-gradient-bar {
+            width: 100%;
+            height: 12px;
+            border-radius: 6px;
+            background: linear-gradient(to right,
+                #ff3300, #ff7700, #ffbb33, #eeff77, #bbff88, #66ff55);
+            margin-bottom: 6px;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+        .stiff-gradient-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.72em;
+            color: var(--text-2);
+            font-weight: 500;
+            margin-bottom: 14px;
+        }
+        .stiff-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .stiff-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 0.82em;
+            color: var(--text-1);
+        }
+        .stiff-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.12);
+        }
+        .stiff-note {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            font-size: 0.74em;
+            color: var(--text-2);
+            line-height: 1.45;
+        }
+
         /* Bend slider */
         #bendSlider {
             width: 100%; cursor: pointer; accent-color: var(--dark);
@@ -412,39 +488,212 @@
         }
         #helpBtn:hover { background: #333330; }
 
+        /* ── Help overlay ───────────────────────────────────────────────────── */
         #helpOverlay {
             display: none; position: fixed; inset: 0;
-            background: rgba(0,0,0,0.40); z-index: 300;
+            background: rgba(20,20,18,0.50);
+            z-index: 300;
             align-items: center; justify-content: center;
+            backdrop-filter: blur(3px);
         }
         #helpOverlay.open { display: flex; }
+
         #helpModal {
-            background: #FFFFFF; border-radius: 16px;
+            background: var(--bg-panel);
+            border-radius: 20px;
             border: 1px solid var(--border-2);
-            padding: 32px 36px; max-width: 520px; width: 90%;
-            max-height: 85vh; overflow-y: auto;
-            box-shadow: 0 12px 50px rgba(0,0,0,0.18);
+            width: min(820px, 96vw);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.18);
+            position: relative;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Header */
+        .hm-header {
+            background: var(--bg-panel);
+            color: var(--dark);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-shrink: 0;
             position: relative;
         }
-        #helpModal h2 { margin: 0 0 4px; font-size: 1.25em; color: var(--dark); }
-        #helpModal .subtitle { font-size: 0.8em; color: var(--text-2); margin-bottom: 20px; }
-        #helpModal h3 {
-            font-size: 0.75em; text-transform: uppercase;
-            letter-spacing: 0.08em; color: var(--text-2); margin: 18px 0 8px;
-        }
-        #helpModal ul { margin: 0; padding: 0 0 0 18px; line-height: 1.9; font-size: 0.9em; color: var(--text-1); }
-        #helpModal li span { font-weight: 700; color: var(--dark); }
-        #helpModal .tip {
-            margin-top: 18px; padding: 12px 14px;
-            background: rgba(237,217,48,0.15); border-left: 3px solid var(--accent);
-            border-radius: 8px; font-size: 0.86em; color: var(--text-1); line-height: 1.7;
-        }
+        .hm-header-icon { font-size: 1.7em; line-height: 1; }
+        .hm-header-title { font-size: 1.08em; font-weight: 800; letter-spacing: -0.01em; color: var(--dark); }
+        .hm-header-sub { font-size: 0.73em; color: var(--text-2); margin-top: 2px; }
+
         #closeHelp {
-            position: absolute; top: 14px; right: 16px;
-            background: none; border: none; font-size: 1.4em;
-            cursor: pointer; color: var(--text-2); line-height: 1;
+            margin-left: auto;
+            flex-shrink: 0;
+            background: var(--bg-card); border: 1px solid var(--border-2);
+            width: 28px; height: 28px; border-radius: 50%;
+            font-size: 0.95em; cursor: pointer;
+            color: var(--text-2);
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s, color 0.15s;
         }
-        #closeHelp:hover { color: var(--text-1); }
+        #closeHelp:hover { background: var(--bg-card-2); color: var(--dark); }
+
+        /* Tab bar */
+        .hm-tabs {
+            display: flex;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            padding: 0 28px;
+            gap: 0;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .hm-tab {
+            padding: 12px 18px 11px;
+            font-size: 0.78em; font-weight: 600;
+            color: var(--text-2); cursor: pointer;
+            border: none; background: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+        .hm-tab:hover { color: var(--dark); }
+        .hm-tab.active { color: var(--dark); border-bottom-color: var(--accent-dk); }
+
+        /* Scrollable body */
+        .hm-body { overflow-y: auto; padding: 28px 32px 36px; flex: 1; background: var(--bg-panel); }
+
+        /* Tab panels */
+        .hm-panel { display: none; }
+        .hm-panel.active { display: block; }
+
+        /* Section label */
+        .hm-section-label {
+            font-size: 0.68em; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.09em;
+            color: var(--text-2); margin: 0 0 10px;
+        }
+
+        /* Shortcut grid */
+        .hm-shortcuts {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 7px; margin-bottom: 18px;
+        }
+        .hm-shortcut {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 11px 14px;
+        }
+        .hm-key {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: var(--bg-card-2);
+            border: 1px solid var(--border-2); border-bottom-width: 2px;
+            border-radius: 5px; padding: 3px 8px;
+            font-size: 0.72em; font-weight: 700; color: var(--dark);
+            white-space: nowrap; font-family: 'Inter', monospace; flex-shrink: 0;
+        }
+        .hm-shortcut-desc { font-size: 0.79em; color: var(--text-1); line-height: 1.3; }
+
+        /* Stitch cards */
+        .hm-stitch-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 9px; margin-bottom: 18px;
+        }
+        .hm-stitch-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 20px 16px 18px; text-align: center;
+        }
+        .hm-stitch-badge {
+            display: inline-block; margin-bottom: 9px;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 0.7em; font-weight: 700; letter-spacing: 0.04em;
+        }
+        .hm-stitch-name { font-size: 0.85em; font-weight: 700; color: var(--dark); margin-bottom: 5px; }
+        .hm-stitch-desc { font-size: 0.73em; color: var(--text-2); line-height: 1.45; }
+
+        /* Info rows */
+        .hm-info-rows { display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px; }
+        .hm-info-row {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--border-2);
+            border-radius: var(--r-card); padding: 13px 16px;
+            font-size: 0.8em; color: var(--text-1); line-height: 1.5;
+        }
+        .hm-info-row strong { color: var(--dark); font-weight: 700; }
+
+        /* View cards */
+        .hm-view-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 9px; margin-bottom: 18px;
+        }
+        .hm-view-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card); padding: 16px 16px 15px;
+        }
+        .hm-view-name {
+            font-size: 0.84em; font-weight: 700; color: var(--dark);
+            margin-bottom: 5px;
+        }
+        .hm-view-desc { font-size: 0.76em; color: var(--text-2); line-height: 1.45; }
+
+        /* File cards */
+        .hm-file-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 9px; margin-bottom: 18px;
+        }
+        .hm-file-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 20px 16px 18px; text-align: center;
+        }
+        .hm-file-icon { font-size: 1.5em; margin-bottom: 7px; }
+        .hm-file-name { font-size: 0.83em; font-weight: 700; color: var(--dark); margin-bottom: 4px; }
+        .hm-file-desc { font-size: 0.73em; color: var(--text-2); line-height: 1.4; }
+        .hm-file-ext {
+            display: inline-block; margin-top: 6px;
+            background: var(--bg-card); border: 1px solid var(--border-2);
+            border-radius: 4px; padding: 2px 7px;
+            font-size: 0.69em; font-weight: 700; color: var(--text-2); font-family: monospace;
+        }
+
+        /* Tip box */
+        .hm-tip {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--r-card);
+            padding: 11px 14px;
+            font-size: 0.8em; color: var(--text-1); line-height: 1.55;
+        }
+        .hm-tip strong { color: var(--dark); }
+
+        /* Stiffness dot (CSS, no emoji) */
+        .hm-stiff-dot {
+            display: inline-block; width: 11px; height: 11px;
+            border-radius: 50%; flex-shrink: 0;
+            border: 1px solid rgba(0,0,0,0.10);
+            margin-right: 8px; vertical-align: middle;
+        }
+
+        /* Stiffness colour swatches in help */
+        .hm-stiff-bar {
+            width: 100%; height: 10px; border-radius: 5px;
+            background: linear-gradient(to right, #ff3300,#ff7700,#ffbb33,#eeff77,#bbff88,#66ff55);
+            border: 1px solid rgba(0,0,0,0.08); margin: 8px 0 6px;
+        }
+        .hm-stiff-labels {
+            display: flex; justify-content: space-between;
+            font-size: 0.7em; color: var(--text-2); font-weight: 500; margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -453,64 +702,251 @@
 
     <button id="helpBtn">?</button>
 
+    <!-- ── Stiffness simulation legend ──────────────────────────────────── -->
+    <div id="stiffnessLegend">
+        <div class="stiff-legend-title">Simulation active</div>
+        <div class="stiff-legend-heading">Stiffness Map</div>
+        <div class="stiff-gradient-bar"></div>
+        <div class="stiff-gradient-labels">
+            <span>Flexible</span>
+            <span>Stiff</span>
+        </div>
+        <div class="stiff-rows">
+            <div class="stiff-row">
+                <div class="stiff-dot" style="background:#ff3300;"></div>
+                <span>1–2 layers: very flexible, easy to deform</span>
+            </div>
+            <div class="stiff-row">
+                <div class="stiff-dot" style="background:#ff7700;"></div>
+                <span>Thin section, limited structural support</span>
+            </div>
+            <div class="stiff-row">
+                <div class="stiff-dot" style="background:#ffbb33;"></div>
+                <span>Moderate, some rigidity building up</span>
+            </div>
+            <div class="stiff-row">
+                <div class="stiff-dot" style="background:#bbff88;"></div>
+                <span>3+ layers: good inter-layer connectivity</span>
+            </div>
+            <div class="stiff-row">
+                <div class="stiff-dot" style="background:#66ff55;"></div>
+                <span>Dense section, high stiffness</span>
+            </div>
+        </div>
+        <div class="stiff-note">
+            Colour reflects <strong>local stiffness</strong> based on layer depth,
+            neighbour count and purl density. Orange areas will flex or pivot more
+            easily when the garment is worn.
+        </div>
+    </div>
+
     <div id="helpOverlay">
         <div id="helpModal">
-            <button id="closeHelp">×</button>
-            <h2>DigiKnit — 3D Voxel Knitter</h2>
-            <div class="subtitle">by Diego Fabri</div>
 
-            <h3>🖱 Navigation</h3>
-            <ul>
-                <li><span>Left Click</span> — place a stitch</li>
-                <li><span>Shift + Left Click</span> — delete a stitch</li>
-                <li><span>Click &amp; Drag</span> — paint or erase multiple stitches</li>
-                <li><span>Right Click + Drag</span> — rotate the camera</li>
-                <li><span>Mouse Wheel</span> — zoom in / out</li>
-                <li><span>Ctrl + Z</span> — undo last action</li>
-                <li><span>+ / −</span> grid buttons — resize the voxel grid</li>
-            </ul>
-
-            <h3>🧶 Stitches</h3>
-            <ul>
-                <li><span>Knit</span> — standard knit loop, face side</li>
-                <li><span>Purl</span> — reverse knit loop, purl side</li>
-                <li><span>Cast On</span> — foundation row stitch</li>
-            </ul>
-
-            <h3>📐 Layers</h3>
-            <ul>
-                <li>Use <span>↑ / ↓ Layer</span> buttons to move between rows</li>
-                <li>To build on a second layer, the stitches <span>underneath should be Purls</span> — they provide the loop structure for the next row to anchor into</li>
-                <li>Odd layers automatically <span>flip orientation</span> to match knitting direction</li>
-            </ul>
-
-            <h3>👁 Views</h3>
-            <ul>
-                <li><span>Abstract View</span> — switches to knitspeak symbol notation, ideal for knitters who read traditional knitting charts</li>
-                <li><span>Section View</span> — slice through the model vertically to inspect inner structure</li>
-            </ul>
-
-            <h3>🔁 Circular Knitting</h3>
-            <ul>
-                <li>Circular knitting mode is included — wrap your rows into a tube or seamless round to simulate knitting in the round</li>
-            </ul>
-
-            <h3>💾 Save, Load &amp; Export</h3>
-            <ul>
-                <li><span>Save</span> — stores your model as a <code>.json</code> file</li>
-                <li><span>Load</span> — reopens a previously saved <code>.json</code></li>
-                <li><span>Export</span> — exports the 3D geometry to OBJ and other formats for use in external software</li>
-            </ul>
-
-            <h3>💪 Strength Test</h3>
-            <ul>
-                <li>Highlights structural weak points based on neighbour connectivity</li>
-                <li><span style="color:#e07030">Orange</span> = isolated / pivot risk &nbsp;·&nbsp; <span style="color:#44aa44">Green</span> = well connected</li>
-            </ul>
-
-            <div class="tip">
-                💡 <strong>Tip:</strong> always start with a Cast On row at layer 0, then switch to Knit for subsequent rows. Place Purls below any stitch that needs to support a layer above.
+            <!-- Header -->
+            <div class="hm-header">
+                <div>
+                    <div class="hm-header-title">DigiKnitting · 3D Voxel Knitter</div>
+                    <div class="hm-header-sub">by Diego Fabri</div>
+                </div>
+                <button id="closeHelp">×</button>
             </div>
+
+            <!-- Tab bar -->
+            <div class="hm-tabs">
+                <button class="hm-tab active" data-tab="controls">Controls</button>
+                <button class="hm-tab" data-tab="stitches">Stitches</button>
+                <button class="hm-tab" data-tab="layers">Layers</button>
+                <button class="hm-tab" data-tab="views">Views</button>
+                <button class="hm-tab" data-tab="files">Files</button>
+            </div>
+
+            <!-- Body -->
+            <div class="hm-body">
+
+                <!-- ── Controls ── -->
+                <div class="hm-panel active" id="hm-tab-controls">
+                    <p class="hm-section-label">Placing stitches</p>
+                    <div class="hm-shortcuts">
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Click</span>
+                            <span class="hm-shortcut-desc">Place a stitch</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Shift + Click</span>
+                            <span class="hm-shortcut-desc">Delete a stitch</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Click + Drag</span>
+                            <span class="hm-shortcut-desc">Paint or erase multiple</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">+ / −</span>
+                            <span class="hm-shortcut-desc">Resize the voxel grid</span>
+                        </div>
+                    </div>
+                    <p class="hm-section-label">Camera</p>
+                    <div class="hm-shortcuts">
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Right Drag</span>
+                            <span class="hm-shortcut-desc">Rotate the camera</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Ctrl + Right Drag</span>
+                            <span class="hm-shortcut-desc">Pan / move the viewport</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Scroll</span>
+                            <span class="hm-shortcut-desc">Zoom in / out</span>
+                        </div>
+                    </div>
+                    <p class="hm-section-label">Keyboard</p>
+                    <div class="hm-shortcuts">
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Ctrl Z</span>
+                            <span class="hm-shortcut-desc">Undo last action</span>
+                        </div>
+                        <div class="hm-shortcut">
+                            <span class="hm-key">Ctrl Shift Z</span>
+                            <span class="hm-shortcut-desc">Redo</span>
+                        </div>
+                    </div>
+                    <div class="hm-tip">
+                        <strong>Tip:</strong> Undo and Redo buttons are also in the left panel, useful on touch devices.
+                    </div>
+                </div>
+
+                <!-- ── Stitches ── -->
+                <div class="hm-panel" id="hm-tab-stitches">
+                    <p class="hm-section-label">Stitch types</p>
+                    <div class="hm-stitch-grid">
+                        <div class="hm-stitch-card">
+                            <div class="hm-stitch-badge" style="background:rgba(80,140,255,0.12);color:#2255cc;border:1px solid rgba(80,140,255,0.25);">KNIT</div>
+                          
+                            <div class="hm-stitch-desc">Standard knit loop, face side. Most common stitch for building rows.</div>
+                        </div>
+                        <div class="hm-stitch-card">
+                            <div class="hm-stitch-badge" style="background:rgba(160,80,200,0.12);color:#7722aa;border:1px solid rgba(160,80,200,0.25);">PURL</div>
+                         
+                            <div class="hm-stitch-desc">Reverse loop, purl bump. Place purls below any stitch that needs to support a layer above.</div>
+                        </div>
+                        <div class="hm-stitch-card">
+                            <div class="hm-stitch-badge" style="background:rgba(240,128,48,0.12);color:#b85010;border:1px solid rgba(240,128,48,0.30);">CAST ON</div>
+                      
+                            <div class="hm-stitch-desc">Foundation row stitch. Always start layer 0 with Cast Ons before knitting above.</div>
+                        </div>
+                    </div>
+                    <p class="hm-section-label">3D upgrades</p>
+                    <div class="hm-info-rows">
+                        <div class="hm-info-row">
+                            <strong>3D Purl:</strong> a purl automatically upgrades to its full 3D form when a stitch is placed at its cover position (one layer up, one step in the facing direction).
+                        </div>
+                        <div class="hm-info-row">
+                            <strong>3D Cast On:</strong> a cast-on gains its 3D arch shape once a knit stitch is placed on the layer above it.
+                        </div>
+                    </div>
+                    <div class="hm-tip">
+                        <strong>Colour</strong> any stitch using the colour picker in the left panel before placing it.
+                    </div>
+                </div>
+
+                <!-- ── Layers ── -->
+                <div class="hm-panel" id="hm-tab-layers">
+                    <p class="hm-section-label">Building up</p>
+                    <div class="hm-info-rows">
+                        <div class="hm-info-row">
+                            Use <strong>Up / Down Layer</strong> buttons in the panel to move between rows. Each layer sits one grid step above the last.
+                        </div>
+                        <div class="hm-info-row">
+                            Odd layers automatically <strong>flip orientation</strong>, matching the alternating direction of real knitting rows.
+                        </div>
+                        <div class="hm-info-row">
+                            Stitches with <strong>no supporting purl beneath them</strong> are highlighted in red; they have no loop structure to anchor into.
+                        </div>
+                        <div class="hm-info-row">
+                            <strong>Circular knitting:</strong> drag the bend slider to wrap flat rows into a tube. Connectors and stitches warp together.
+                        </div>
+                    </div>
+                    <div class="hm-tip">
+                        <strong>Tip:</strong> always start with a Cast On row at layer 0, then switch to Knit for subsequent rows. Place Purls below any stitch that needs to support a layer above.
+                    </div>
+                </div>
+
+                <!-- ── Views ── -->
+                <div class="hm-panel" id="hm-tab-views">
+                    <p class="hm-section-label">Display modes</p>
+                    <div class="hm-view-grid">
+                        <div class="hm-view-card">
+                            <div class="hm-view-name">Abstract View</div>
+                            <div class="hm-view-desc">Switches to knitspeak symbol notation, ideal for knitters who read traditional knitting charts.</div>
+                        </div>
+                        <div class="hm-view-card">
+                            <div class="hm-view-name">Section View</div>
+                            <div class="hm-view-desc">Slices the model vertically so you can inspect the inner layer structure.</div>
+                        </div>
+                        <div class="hm-view-card">
+                            <div class="hm-view-name">Stiffness Sim</div>
+                            <div class="hm-view-desc">Colours every stitch by local stiffness. A colour legend appears in the corner while active.</div>
+                        </div>
+                        <div class="hm-view-card">
+                            <div class="hm-view-name">Top-Down View</div>
+                            <div class="hm-view-desc">Snaps the camera overhead, useful for planning a new layer.</div>
+                        </div>
+                    </div>
+                    <p class="hm-section-label">Stiffness colour scale</p>
+                    <div class="hm-stiff-bar"></div>
+                    <div class="hm-stiff-labels"><span>Flexible (1–2 layers)</span><span>Stiff (3+ layers)</span></div>
+                    <div class="hm-info-rows">
+                        <div class="hm-info-row">
+                            <span class="hm-stiff-dot" style="background:#ff5500;"></span>
+                            <strong>Orange:</strong> very flexible, easy to deform. Thin or isolated sections.
+                        </div>
+                        <div class="hm-info-row">
+                            <span class="hm-stiff-dot" style="background:#66cc44;"></span>
+                            <strong>Green:</strong> high stiffness. Dense multi-layer sections with strong connectivity.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Files ── -->
+                <div class="hm-panel" id="hm-tab-files">
+                    <p class="hm-section-label">File operations</p>
+                    <div class="hm-file-grid">
+                        <div class="hm-file-card">
+                            <div class="hm-file-icon">💾</div>
+                            <div class="hm-file-name">Save</div>
+                            <div class="hm-file-desc">Saves the full model: stitches, connectors, layers, bend and colours.</div>
+                            <span class="hm-file-ext">.json</span>
+                        </div>
+                        <div class="hm-file-card">
+                            <div class="hm-file-icon">📂</div>
+                            <div class="hm-file-name">Load</div>
+                            <div class="hm-file-desc">Reopens a previously saved file. Replaces the current scene.</div>
+                            <span class="hm-file-ext">.json</span>
+                        </div>
+                        <div class="hm-file-card">
+                            <div class="hm-file-icon">📦</div>
+                            <div class="hm-file-name">Export OBJ</div>
+                            <div class="hm-file-desc">Exports 3D geometry grouped by layer, colour and stitch type.</div>
+                            <span class="hm-file-ext">.obj + .mtl</span>
+                        </div>
+                    </div>
+                    <div class="hm-file-grid" style="grid-template-columns: 1fr; margin-top: 10px;">
+                        <div class="hm-file-card" style="text-align:left; display:flex; align-items:flex-start; gap:14px;">
+                            <div style="font-size:1.5em; flex-shrink:0; margin-top:2px;">📄</div>
+                            <div>
+                                <div class="hm-file-name">Chart</div>
+                                <div class="hm-file-desc">Generates a printable knitting chart, one page per layer. Each cell shows the stitch symbol with a colour tint. Row numbers count upward from 1 (knitting convention). Opens in a new tab — use Print or Save as PDF.</div>
+                                <span class="hm-file-ext">print / PDF</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hm-tip">
+                        <strong>OBJ export</strong> includes a companion <code>.mtl</code> material file. Import both into Blender or Cinema 4D to keep the correct stitch colours.
+                    </div>
+                </div>
+
+            </div><!-- .hm-body -->
         </div>
     </div>
 
@@ -1647,15 +2083,52 @@
         function runStrengthTest() {
             const MAX_NEIGHBOURS = 6;
             const models = Object.values(voxelMatrix);
+            if (models.length === 0) return;
 
-            // First pass: raw neighbour counts
+            // ── Pass 0: effective column height per stitch ────────────────────────
+            // Rule: ≥3 effective layers in a column → eligible for green.
+            //
+            // Cast-on counts as 2 blocks (it represents 2 physical yarn rows).
+            // For cast-ons, "has a stitch above" is extended: directly above,
+            // OR one step forward/back + one step up — matching castOnHasStitchAbove().
+            //
+            // Per-stitch effective height:
+            //   Cast-on:  2  + (1 if any "above" stitch exists in its reach)
+            //   Regular:  number of stitches stacked at the same (X, Z) column
+
+            // First build raw column counts for regular stitches
+            const columnHeight = new Map(); // key "x,z" → raw count
+            models.forEach(model => {
+                const pos = model.userData.flatPos || model.position;
+                const colKey = `${Math.round(pos.x)},${Math.round(pos.z)}`;
+                columnHeight.set(colKey, (columnHeight.get(colKey) || 0) + 1);
+            });
+
+            // Per-stitch effective height
+            const effectiveHeight = new Map();
+            models.forEach(model => {
+                const pos = model.userData.flatPos || model.position;
+                if (model.userData.stitchType === 'castOn') {
+                    // Cast-on = 2 blocks by default
+                    let h = 2;
+                    // Check if any "above" stitch exists (direct or directional)
+                    if (castOnHasStitchAbove(model)) h += 1;
+                    effectiveHeight.set(model, h);
+                } else {
+                    const colKey = `${Math.round(pos.x)},${Math.round(pos.z)}`;
+                    effectiveHeight.set(model, columnHeight.get(colKey) || 1);
+                }
+            });
+
+            // ── Pass 1: raw neighbour counts ─────────────────────────────────────
             const rawScores = new Map();
             models.forEach(model => {
                 const pos = model.userData.flatPos || model.position;
                 rawScores.set(model, getNeighbourCount(pos));
             });
 
-            // Second pass: connectivity + purl quality + single-layer dominance
+            // ── Pass 2: connectivity + purl quality + column-height cap ──────────
+            const baseScores = new Map();
             models.forEach(model => {
                 const pos = model.userData.flatPos || model.position;
                 const own = rawScores.get(model);
@@ -1666,8 +2139,7 @@
                     new THREE.Vector3(0, 0,  GRID_STEP), new THREE.Vector3(0, 0, -GRID_STEP),
                 ];
 
-                let neighbourSum = 0, neighbourCount = 0;
-                let purlNeighbours = 0;
+                let neighbourSum = 0, neighbourCount = 0, purlNeighbours = 0;
                 dirs.forEach(d => {
                     const nb = voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x + d.x, pos.y + d.y, pos.z + d.z))];
                     if (nb) {
@@ -1677,49 +2149,41 @@
                     }
                 });
 
-                const avgNeighbourScore = neighbourCount > 0 ? neighbourSum / (neighbourCount * MAX_NEIGHBOURS) : 0;
+                const avgNeighbourScore = neighbourCount > 0
+                    ? neighbourSum / (neighbourCount * MAX_NEIGHBOURS) : 0;
 
-                // ── Purl quality multiplier ──────────────────────────────────────────
-                // 3D purl stitches are structurally the strongest stitch type.
-                // Score is multiplied by how "purl-rich" the local neighbourhood is.
-                // Self counts as one unit; each neighbour counts as one unit.
+                // ── Purl quality multiplier ──────────────────────────────────────
                 const selfIsPurl = model.userData.stitchType === 'purl';
                 const totalUnits = 1 + neighbourCount;
                 const purlUnits  = (selfIsPurl ? 1 : 0) + purlNeighbours;
-                const purlRatio  = totalUnits > 0 ? purlUnits / totalUnits : 0;
-                // Range: 0 purl → ×0.25 (very weak), all purl → ×1.0 (full strength)
-                const purlMultiplier = 0.25 + 0.75 * purlRatio;
+                const purlMultiplier = 0.25 + 0.75 * (totalUnits > 0 ? purlUnits / totalUnits : 0);
 
-                // ── Connectivity base ────────────────────────────────────────────────
-                // 60% own neighbour count + 40% average neighbour quality
-                const base = (own / MAX_NEIGHBOURS) * 0.6 + avgNeighbourScore * 0.4;
-
-                // Apply purl quality
+                // ── Connectivity base ────────────────────────────────────────────
+                const base      = (own / MAX_NEIGHBOURS) * 0.6 + avgNeighbourScore * 0.4;
                 const afterPurl = base * purlMultiplier;
 
-                // ── Single-layer dominance ───────────────────────────────────────────
-                // A stitch with no vertical neighbours lives in a one-sheet layer:
-                // extremely flexible regardless of in-plane connectivity.
-                // Cap to the bottom 8% of the palette → deep saturated orange.
-                const hasAbove = !!voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y + GRID_STEP, pos.z))];
-                const hasBelow = !!voxelMatrix[getMatrixKey(new THREE.Vector3(pos.x, pos.y - GRID_STEP, pos.z))];
-                const singleLayer = !hasAbove && !hasBelow;
+                // ── Column-height cap ────────────────────────────────────────────
+                // Effective height < 3 → orange; ≥ 3 → uncapped (can reach green).
+                // Cast-ons count as 2 blocks; with 1 stitch above they reach 3.
+                const effH = effectiveHeight.get(model) || 1;
+                let combined = afterPurl;
+                if      (effH === 1) combined = Math.min(combined, 0.08);
+                else if (effH === 2) combined = Math.min(combined, 0.28);
 
-                const combined = singleLayer ? Math.min(afterPurl, 0.08) : afterPurl;
-
-                model.userData._strengthScore = combined;   // store for connector use
-                const col = strengthPaletteColor(combined);
-                setModelColor(model, col);
+                baseScores.set(model, combined);
+                model.userData._strengthScore = combined;
             });
 
-            // Colour connector sweeps: average the strength scores of their two endpoints
+            // ── Apply colours ────────────────────────────────────────────────────
+            models.forEach(model => setModelColor(model, strengthPaletteColor(baseScores.get(model))));
+
+            // Colour connector sweeps: average of their two endpoint scores
             connectors.forEach(mesh => {
                 const mA = mesh.userData.connectorStart;
                 const mB = mesh.userData.connectorEnd;
-                const sA = mA?._strengthScore ?? mA?.userData?._strengthScore ?? 0;
-                const sB = mB?._strengthScore ?? mB?.userData?._strengthScore ?? 0;
-                const avg = (sA + sB) / 2;
-                if (mesh.material) mesh.material.color.copy(strengthPaletteColor(avg));
+                const sA = mA?.userData?._strengthScore ?? 0;
+                const sB = mB?.userData?._strengthScore ?? 0;
+                if (mesh.material) mesh.material.color.copy(strengthPaletteColor((sA + sB) / 2));
             });
         }
 
@@ -2392,9 +2856,19 @@
             document.getElementById('helpBtn').onclick    = () => helpOverlay.classList.add('open');
             document.getElementById('closeHelp').onclick  = () => helpOverlay.classList.remove('open');
             helpOverlay.addEventListener('click', e => { if (e.target === helpOverlay) helpOverlay.classList.remove('open'); });
+            // Tab switching inside help modal
+            document.querySelectorAll('.hm-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.hm-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.hm-panel').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('hm-tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
             document.getElementById('strengthBtn').onclick = () => {
                 strengthTestActive = !strengthTestActive;
                 document.getElementById('strengthBtn').classList.toggle('active', strengthTestActive);
+                document.getElementById('stiffnessLegend').classList.toggle('visible', strengthTestActive);
                 strengthTestActive ? runStrengthTest() : clearStrengthTest();
             };
 
